@@ -66,7 +66,15 @@ export default function FaultAtlas({
       )
       .filter((n) =>
         mode === "calls"
-          ? ["Function", "Call"].includes(n.kind)
+          ? ["Function", "Call"].includes(n.kind) ||
+            (n.kind === "Module" &&
+              Number(
+                (
+                  report.structure.module as
+                    | { statement_count?: number }
+                    | undefined
+                )?.statement_count || 0,
+              ) > 0)
           : mode === "ast"
             ? true
             : n.kind === "Statement",
@@ -78,9 +86,9 @@ export default function FaultAtlas({
       position: {
         x:
           mode === "calls"
-            ? n.kind === "Function"
-              ? 30
-              : 320
+            ? n.kind === "Call"
+              ? 320
+              : 30
             : mode === "ast"
               ? (n.depth || 0) * 205
               : (i % 3) * 235,
@@ -94,7 +102,7 @@ export default function FaultAtlas({
               : Math.floor(i / 3) * 100,
       },
       data: {
-        label: `${n.name || n.target || n.ast_type} ${n.start_line ? `: ${n.start_line}` : ""}${n.resolved === false ? " · unresolved" : ""}`,
+        label: `${n.name || n.target || n.ast_type || n.kind} ${n.start_line ? `: ${n.start_line}` : ""}${n.resolved === false ? " · unresolved" : ""}`,
         line: n.start_line,
       },
       selected: n.start_line === line,
@@ -147,7 +155,7 @@ export default function FaultAtlas({
               value={scope}
               onChange={(e) => setScope(e.target.value)}
             >
-              <option value="">All functions</option>
+              <option value="">All source</option>
               {report.functions.map((f) => (
                 <option key={f.name} value={f.name}>
                   {f.name}

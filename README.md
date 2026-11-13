@@ -9,7 +9,6 @@ Requires Python 3.11+, Node **22.12+**, npm, Git and Docker Desktop/Engine runni
 ```sh
 make setup
 make runner
-make train
 make dev
 ```
 
@@ -39,6 +38,18 @@ Docker-dependent tests explicitly skip when the runner is unavailable. `make dem
 4. For ambiguous behavior, select **Confirm output**, enter one exact JSON expectation and confirm. This creates an A-tier oracle in a **new job/test revision**. Alternatively accept the exact input domain without asserting an output; resolving only its I-tier fault receives `VALIDATED_RUNTIME_FAULT_ONLY`.
 5. Inspect all candidate diffs and original/patched test matrices. The tournament rejects authoritative regressions and preserves caller tests. Export the evidence ZIP. Custom candidates can also be submitted for independent validation.
 
+### Run ordinary Python scripts
+
+Functions are optional. Paste `print("Hello, Samyak!")`, loops, assignments, conditions or an `if __name__ == "__main__":` program and press **Run** (⌘/Ctrl+Enter). The complete module executes as `__main__` through the same immutable-job API, separate worker and restricted Docker image. **Analyze source** (⌘/Ctrl+Shift+Enter) adds static module evidence and, when functions exist, the existing ML/input/repair workflow. A healthy script does not trigger script repair suggestions.
+
+Expand **Standard input** for up to 8,000 characters of stdin. There is no interactive shell or package installation. The resizable **Output / Problems / Execution Trace** panel shows actual stdout/stderr, exit code, exception frames, covered executable lines, duration and timeouts. Click a traceback location to inspect that exact source line. Clear only clears the displayed output; immutable evidence remains exportable. Source, stdin or test edits invalidate prior results. Run creates a new job; it never rewrites an old report. The script suggestion is non-blocking and dismissible per submission.
+
+`EXECUTED_SUCCESSFULLY` means the process completed; it is **not** a correctness oracle or a validated repair. Script crashes retain an unconfirmed input domain. Function-level models and frozen metrics are unchanged; script-only source shows **ML risk: Not applicable to script-only source**. Python is the supported language; `printf(...)` produces an actual Python `NameError` with a helpful C/Python explanation rather than translation.
+
+The v1.2 API accepts `POST /v1/analyses` with `{"source":"print(input())", "mode":"SCRIPT", "stdin":"hello\n"}`. Default `mode: "ANALYZE"` automatically executes script-only submissions, including those with zero tests. `Report.script_result` carries the observation separately from function-test validation. Evidence bundles retain stdin, source and runner identity; `scripts/replay.py` replays both script and function observations in the exact image.
+
+Rebuild with `make runner` after updating this checkout. All existing import/name allowlists remain in force; only bounded `input()` is additionally supported in the SCRIPT path. CPU/wall/RAM/PID/output limits remain fixed. Output is read-only xterm text with terminal controls removed, not a host terminal. Bounded results arrive when the worker finishes; live stdout streaming and job cancellation are not supported. Resource-forced termination can lack a full traceback/coverage; it never receives a successful verdict.
+
 Authored tests may be provided through the JSON editor or literal source assertions. Example:
 
 ```json
@@ -56,7 +67,7 @@ A/B expected-behavior failures, I operational faults and C exploratory observati
 - **Inputs/oracles:** annotations → literal call sites → AST operations → bounded Docker trials. Explicit Hypothesis strategies generate boundaries/negative/edge cases; bounded `find` attempts shrink reproducible exception signatures. Shrinking does not transfer an exact oracle to a new tuple.
 - **Repair:** formatting-preserving LibCST comparison, empty/zero guard and return-sentinel edits; surrounding functions, callers, def-use, witnesses, test revision and precedents accompany candidates. Originals are never edited. Syntax, signatures, imports, edit budget, security policy, trusted regressions and unresolved checks gate validation.
 - **Execution:** fixed Linux Docker image; inputs copied over stdin into ephemeral tmpfs; non-root UID 10001, network disabled, read-only root, no mounts/socket/secrets, dropped capabilities, no-new-privileges, 1 CPU, 256 MiB RAM, 32 PIDs, per-case CPU/wall limits, suite deadline and capped output. No arbitrary package installation. Coverage is collected inside the container. Expected outputs are compared outside it.
-- **Persistence/API:** Pydantic v1.0 contracts, SQLite WAL durable polling, single-worker OS lock, crash recovery, SHA-256 artifact verification, resumable SSE and immutable source/test/patch revisions. No Redis/Postgres.
+- **Persistence/API:** Pydantic v1.2 additive contracts, SQLite WAL durable polling, single-worker OS lock, crash recovery, SHA-256 artifact verification, resumable SSE and immutable source/test/patch revisions. No Redis/Postgres.
 
 **Docker-only isolation is development-grade.** The source allowlist restricts supported programs but is not a security boundary. Do not present this deployment as a hardened public multi-tenant sandbox. Runtime samples contain seven warmed calls per case and separate container runs; startup is excluded, but noise/order effects are not controlled enough to claim optimization. Reports correctly return `PERFORMANCE_INCONCLUSIVE` while retaining median/p95 samples and changed-line footprints (added plus removed source lines).
 
@@ -99,7 +110,7 @@ Copy `.env.example` to `.env` to configure paths or the optional OpenAI-compatib
 
 ## Phase 2 workspaces and experiments
 
-The warm light/dark Workbench uses local Geist fonts, custom Monaco themes, diagnostics/heat gutters, fullscreen, resizing, search/folding/minimap, Cmd/Ctrl+Enter and source/test revision invalidation. Fault Atlas offers bounded AST/call/CFG/def-use views, source peek and impacted callers. Contract Studio exposes real witnesses, exact confirmations/rejections and justified property checks. Repair Arena shows side-by-side diffs, elimination gates, policy and actual retrieval ablation. Model Lab & Vault shows measured binary/family/localization metrics, heuristic novelty, immutable identities and verified replay.
+The warm light/dark Workbench uses local Geist fonts, custom Monaco themes, diagnostics/heat gutters, fullscreen, resizing, search/folding/minimap, Cmd/Ctrl+Enter to Run, Cmd/Ctrl+Shift+Enter to Analyze, and source/stdin/test revision invalidation. Fault Atlas offers bounded AST/call/CFG/def-use views, source peek and impacted callers. Contract Studio exposes real witnesses, exact confirmations/rejections and justified property checks. Repair Arena shows side-by-side diffs, elimination gates, policy and actual retrieval ablation. Model Lab & Vault shows measured binary/family/localization metrics, heuristic novelty, immutable identities and verified replay.
 
 Experiment actions use the **same SQLite queue/worker/SSE**: `POST /v1/analyses/{id}/investigate` with `action` = `witness`, `replay`, `precedents`, `ledger`, `twin` or `metamorphic`. Exact rejections use `/contracts/decision`; sorting contracts use `/contracts/property`. `GET /v1/capabilities` reads real worker/model/runner readiness; `/timeline` exposes persisted events. All create inspectable evidence and retain uncertainty. Optional LLM configuration remains disabled by default.
 

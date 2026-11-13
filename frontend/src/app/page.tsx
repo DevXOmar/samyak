@@ -391,8 +391,9 @@ export default function Workbench() {
         {suggestion === a.source ? (
           <div className="notice flex-row" role="status">
             <span>
-              Your script is running. Adding functions and tests can unlock
-              deeper ML risk scoring, bug localization and repair validation.
+              {a.busy ? "Your script is running. " : ""}Adding functions and
+              tests can unlock deeper ML risk scoring, bug localization and
+              repair validation.
             </span>
             <Button
               variant="ghost"

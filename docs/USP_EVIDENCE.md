@@ -26,3 +26,7 @@ All ten USPs have bounded backend mechanisms, connected UI actions and acceptanc
 ## Boundaries
 
 Docker-only execution is development-grade and local-only. No public multi-tenant hardening or deployment is claimed. Optional configured LLM requests include source/context/test data; no external LLM service was exercised during these checks. Performance retains real median/p95 samples, but remains `PERFORMANCE_INCONCLUSIVE` under the current seven-call/separate-container protocol. New experiments do not certify universal correctness or broaden exact oracle scopes.
+
+### Script observations (v1.2)
+
+The ten mechanisms above remain the function-based investigation workflow; script-only programs do not invent model scores, precedents, witnesses or validated patches to fill those panels. Run and script-only Analyze use the same job queue/SSE and Docker restrictions. `Report.script_result` and module graph/rule artifacts are inspectable through Output/Problems/Execution Trace. Export includes exact source, stdin, streams, exit/coverage/fault observations and runner digest; `scripts/replay.py` verifies/replays the script observation in that image. Function-only ML and output-oracle validation remain explicitly not applicable to script-only source. Acceptance: `backend/tests/test_scripts.py`, `frontend/e2e/scripts.spec.ts`; original ten-USP tests and `make demo-phase2` remain the regression gate.

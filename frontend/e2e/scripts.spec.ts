@@ -81,6 +81,15 @@ for (const [name, source, expected, status] of [
         "OBSERVED_RUNTIME_FAULT",
       );
     }
+    if (name === "hello") {
+      await page.getByRole("tab", { name: "02 Fault Atlas" }).click();
+      await expect(
+        page.locator(".react-flow__node").filter({ hasText: "Module" }),
+      ).toBeVisible();
+      await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+      await page.getByLabel("Graph view").selectOption("cfg");
+      await expect(page.locator(".react-flow__node").first()).toBeVisible();
+    }
     expect(errors).toEqual([]);
   });
 }
