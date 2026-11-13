@@ -1,676 +1,848 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ArrowRight,
   ArrowUpRight,
   Braces,
   Check,
   CircleDot,
+  Command,
   Download,
   FileCode2,
   FlaskConical,
   GitBranch,
   Layers3,
+  Maximize2,
+  Minimize2,
+  Moon,
   Play,
+  RotateCcw,
   ShieldCheck,
+  Sparkles,
+  Sun,
   Upload,
-  Zap,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useTheme } from "@/hooks/use-theme";
+import { useAnalysis } from "@/hooks/use-analysis";
 import {
-  api,
   observed,
   observationLabel,
   observationTone,
   riskLabel,
   tone,
-  type AnalysisRequest,
-  type Job,
-  type PipelineEvent,
   type Report,
   type TestCase,
+  type AnalysisRequest,
 } from "@/lib/client";
 const CodeEditor = dynamic(() => import("@/components/code-editor"), {
   ssr: false,
 });
-const TABS = [
-  "Findings",
-  "Generated tests",
-  "Repair tournament",
-  "Structure",
-  "Models & history",
+const Atlas = dynamic(() => import("@/components/fault-atlas"), { ssr: false });
+const PatchDiff = dynamic(() => import("@/components/patch-diff"), {
+  ssr: false,
+});
+const NAV = [
+  "Workbench",
+  "Fault Atlas",
+  "Contract Studio",
+  "Repair Arena",
+  "Model Lab & Vault",
 ] as const;
-type Tab = (typeof TABS)[number];
+type Workspace = (typeof NAV)[number];
+const STAGES = [
+  ["structure", "Parsing"],
+  ["prediction", "Predicting"],
+  ["localization", "Localizing"],
+  ["inference", "Generating tests"],
+  ["execution", "Executing"],
+  ["repair", "Repairing"],
+  ["validation", "Validating"],
+];
 const EMPTY: Report["findings"] = [];
+function Json({ value }: { value: unknown }) {
+  return <pre className="compact-json">{JSON.stringify(value, null, 2)}</pre>;
+}
+function Empty({
+  title = "Your next investigation starts here",
+  copy = "Paste a Python function, load a source fixture, or upload a .py file. Analyze to build a live evidence trail.",
+}: {
+  title?: string;
+  copy?: string;
+}) {
+  return (
+    <div className="panel empty">
+      <Braces size={25} strokeWidth={1.3} />
+      <h2>{title}</h2>
+      <p>{copy}</p>
+    </div>
+  );
+}
+function Experiment({
+  title,
+  data,
+  action,
+  busy,
+  run,
+}: {
+  title: string;
+  data: unknown;
+  action?: string;
+  busy: boolean;
+  run: (action: string) => void;
+}) {
+  const row = data as Record<string, unknown> | undefined;
+  if (!row) return null;
+  return (
+    <section className="panel panel-body experiment">
+      <header>
+        <h2>{title}</h2>
+        {action ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => run(action)}
+          >
+            <Play size={12} />
+            Run {title}
+          </Button>
+        ) : null}
+      </header>
+      {row.status ? (
+        <Badge tone={tone(String(row.status))}>{String(row.status)}</Badge>
+      ) : null}
+      {row.reason ? (
+        <p className="muted text-xs">{String(row.reason)}</p>
+      ) : null}
+      <Json value={data} />
+    </section>
+  );
+}
 
 export default function Workbench() {
-  const [source, setSource] = useState("");
-  const [tests, setTests] = useState<TestCase[]>([]);
-  const [fixture, setFixture] = useState<AnalysisRequest["fixture"]>(null);
-  const [job, setJob] = useState<Job | null>(null);
-  const [events, setEvents] = useState<PipelineEvent[]>([]);
-  const [report, setReport] = useState<Report | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<Tab>("Findings");
+  const a = useAnalysis();
+  const report = a.visibleReport;
+  const [workspace, setWorkspace] = useState<Workspace>("Workbench");
+  const [theme, setTheme] = useTheme();
   const [line, setLine] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
-  const [confirmTest, setConfirmTest] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [tab, setTab] = useState("source");
+  const [testDraft, setTestDraft] = useState("");
+  const [dialog, setDialog] = useState<
+    "tests" | "confirmation" | "candidate" | null
+  >(null);
+  const [confirmId, setConfirmId] = useState("");
   const [expected, setExpected] = useState("");
   const [customPatch, setCustomPatch] = useState("");
-  const [testJson, setTestJson] = useState("");
   const upload = useRef<HTMLInputElement>(null);
-  const stream = useRef<EventSource | null>(null);
-  const activeJob = useRef<string | null>(null);
-  useEffect(() => () => stream.current?.close(), []);
-
-  async function watch(next: Job) {
-    stream.current?.close();
-    activeJob.current = next.id;
-    setJob(next);
-    setReport(null);
-    setEvents([]);
-    setSelected(0);
-    setConfirmTest(null);
-    setBusy(true);
-    const sse = new EventSource(`/api/v1/analyses/${next.id}/events`);
-    stream.current = sse;
-    sse.addEventListener("stage", (e) => {
-      const ev = JSON.parse((e as MessageEvent).data) as PipelineEvent;
-      setEvents((old) =>
-        old.some((v) => v.id === ev.id) ? old : [...old, ev],
-      );
-      setJob((old) =>
-        old
-          ? {
-              ...old,
-              stage: ev.stage,
-              status:
-                ev.stage === "completed"
-                  ? "COMPLETED"
-                  : ev.stage === "failed"
-                    ? "FAILED"
-                    : ev.stage === "queued"
-                      ? "QUEUED"
-                      : "RUNNING",
-            }
-          : old,
-      );
-    });
-    sse.addEventListener("done", () => {
-      sse.close();
-      void finish(next.id);
-    });
-    sse.onerror = () => {
-      setError(
-        "Live connection interrupted. Reconnecting to the persisted job…",
-      );
+  const editorTop = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("samyak-theme", theme);
+  }, [theme]);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDialog(null);
+        setFullscreen(false);
+      }
     };
-  }
-  async function finish(id: string) {
-    try {
-      const current = await api<Job>(`/v1/analyses/${id}`);
-      if (activeJob.current !== id) return;
-      setJob(current);
-      if (current.status === "FAILED")
-        throw new Error(current.error || "Worker failed");
-      const result = await api<Report>(`/v1/analyses/${id}/report`);
-      if (activeJob.current !== id) return;
-      setReport(result);
-      setCustomPatch(result.candidates[0]?.source || result.source);
-      setError("");
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      if (activeJob.current === id) setBusy(false);
-    }
-  }
-  async function run(
-    path = "/v1/analyses",
-    body: unknown = { source, tests, fixture },
-  ) {
-    setError("");
-    setBusy(true);
-    try {
-      await watch(await api<Job>(path, body));
-    } catch (e) {
-      setError(String(e));
-      setBusy(false);
-    }
-  }
-  async function loadFixture(name: NonNullable<AnalysisRequest["fixture"]>) {
-    try {
-      const data = await api<AnalysisRequest>(`/v1/fixtures/${name}`);
-      setSource(data.source);
-      setTests(data.tests || []);
-      setFixture(name);
-      setTestJson(JSON.stringify(data.tests || [], null, 2));
-      setReport(null);
-      setJob(null);
-      setEvents([]);
-      setLine(null);
-    } catch (e) {
-      setError(String(e));
-    }
-  }
-  function focus(at: number) {
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, []);
+  const chooseLine = useCallback((at: number) => {
     setLine(at);
-    window.scrollTo({ top: 100, behavior: "smooth" });
-  }
-  const candidate = report?.candidates[selected];
-  const resultById = new Map(
+  }, []);
+  const chooseFinding = (at: number) => {
+    setLine(at);
+    setWorkspace("Workbench");
+    editorTop.current?.scrollIntoView({
+      block: "nearest",
+      behavior: "instant",
+    });
+  };
+  const edit = (value: string) => {
+    a.setSource(value);
+    setLine(null);
+  };
+  const candidate = report?.candidates[selected] || report?.candidates[0];
+  const finding =
+    report?.findings.find((f) => f.span.start_line === line) ||
+    report?.findings[0];
+  const ranked = report?.localization.find(
+    (r) => r.line === (line || finding?.span.start_line),
+  );
+  const originals = new Map(
     report?.original_results.map((r) => [r.test_id, r]),
   );
-  const patchedById = new Map(candidate?.results.map((r) => [r.test_id, r]));
-  const confirmation = report?.tests.find((t) => t.id === confirmTest);
-  const nodes = report?.structure?.graph as
-    | { nodes?: unknown[]; edges?: unknown[] }
-    | undefined;
-  const modelMetrics = report?.model?.metrics;
+  const patched = new Map(candidate?.results.map((r) => [r.test_id, r]));
+  const confirmation = report?.tests.find((t) => t.id === confirmId);
+  const details = report?.intelligence || {};
+  const investigate = (action: string, extra: object = {}) =>
+    report &&
+    void a.run(`/v1/analyses/${report.job_id}/investigate`, {
+      action,
+      ...extra,
+    });
+  const modal = (type: typeof dialog) => {
+    if (type === "tests") setTestDraft(JSON.stringify(a.tests, null, 2));
+    if (type === "candidate") setCustomPatch(candidate?.source || a.source);
+    setDialog(type);
+  };
+  async function load(name: NonNullable<AnalysisRequest["fixture"]>) {
+    setLine(null);
+    setSelected(0);
+    setWorkspace("Workbench");
+    await a.load(name);
+  }
+  function confirm(id: string) {
+    const test = report?.tests.find((t) => t.id === id);
+    if (!test) return;
+    setConfirmId(id);
+    setExpected(test.has_expected ? JSON.stringify(test.expected) : "");
+    setDialog("confirmation");
+  }
+  function submitConfirmation() {
+    if (!report || !confirmation) return;
+    try {
+      const value: unknown = JSON.parse(expected);
+      setDialog(null);
+      void a.run(`/v1/analyses/${report.job_id}/contracts/confirm`, {
+        function: confirmation.function,
+        args: confirmation.args,
+        kwargs: confirmation.kwargs,
+        expected: value,
+        reviewer: "workbench-user",
+      });
+    } catch (e) {
+      a.setError(`Enter a valid JSON expected output. ${String(e)}`);
+    }
+  }
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-zinc-800 bg-[#141619] px-5 lg:px-10 h-18 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="size-8 rounded-lg bg-teal-400 text-zinc-950 flex items-center justify-center">
-            <Layers3 size={19} />
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand">
+          <div className="brand-mark">
+            <Layers3 size={17} strokeWidth={1.4} />
           </div>
-          <span className="text-lg tracking-[.2em] font-bold">SAMYAK</span>
-          <span className="ml-4 border-l border-zinc-700 pl-4 text-xs text-zinc-500 hidden sm:block">
-            YUKTIK / ENGINEERING WORKBENCH
-          </span>
+          <span className="brand-name">SAMYAK</span>
+          <span className="brand-caption">CODE INTELLIGENCE / YUKTIK</span>
         </div>
-        <div className="flex items-center gap-3 text-xs text-zinc-400">
-          <span className="size-1.5 rounded-full bg-teal-400" /> Python 3.11{" "}
-          <Badge>PHASE 01</Badge>
-        </div>
-      </header>
-      <main className="max-w-[1600px] mx-auto px-4 py-7 sm:px-7 lg:px-10 lg:py-9">
-        <div className="flex flex-wrap justify-between items-end gap-4 mb-7">
-          <div>
-            <p className="label text-teal-400 mb-3">
-              Predict → investigate → validate
-            </p>
-            <h1 className="text-3xl sm:text-4xl font-medium tracking-tight">
-              Find the fault. Keep the proof.
-            </h1>
-            <p className="text-sm text-zinc-400 mt-3 max-w-2xl">
-              Structural analysis, trained predictions and isolated execution.
-              Every repair carries its evidence.
-            </p>
-          </div>
-          <Button variant="outline" disabled={!report} asChild={!!report}>
-            {report ? (
-              <a href={`/api/v1/analyses/${report.job_id}/bundle`}>
-                <Download size={15} /> Evidence bundle
-              </a>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Download size={15} /> Evidence bundle
-              </span>
-            )}
+        <div className="top-actions">
+          <span className="label desktop-only">Python 3.11</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          >
+            {theme === "light" ? <Moon size={15} /> : <Sun size={15} />}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!report}
+            onClick={() =>
+              report &&
+              downloadBundle(`/api/v1/analyses/${report.job_id}/bundle`)
+            }
+          >
+            <Download size={13} />
+            <span className="desktop-only">Export evidence</span>
           </Button>
         </div>
-        <div className="flex flex-wrap gap-2 items-center mb-5">
-          <span className="label mr-2">Source fixtures</span>
-          {(
-            [
-              ["binary_search", "A · Boundary + reference"],
-              ["average", "B · Unknown contract"],
-              ["caller_regression", "C · Caller regression"],
-            ] as const
-          ).map(([name, title]) => (
-            <Button
-              key={name}
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={() => void loadFixture(name)}
-            >
-              <FileCode2 size={13} />
-              {title}
-            </Button>
-          ))}
-          <span className="text-[11px] text-zinc-600 ml-1">
-            Sources only. Analyze to run.
-          </span>
-        </div>
-        {error ? (
-          <div
-            role="alert"
-            className="mb-4 border border-rose-900 bg-rose-950/40 rounded-lg p-3 text-sm text-rose-200"
+      </header>
+      <nav
+        className="workspace-nav"
+        aria-label="Investigation workspaces"
+        role="tablist"
+      >
+        {NAV.map((name, index) => (
+          <button
+            key={name}
+            role="tab"
+            aria-selected={workspace === name}
+            aria-controls="workspace-content"
+            onClick={() => setWorkspace(name)}
           >
-            {error}
+            <span className="nav-index">0{index + 1}</span>
+            {name}
+          </button>
+        ))}
+      </nav>
+      <main className="workspace-main" id="workspace-content" role="tabpanel">
+        <div className="page-intro">
+          <div>
+            <div className="label gold">Evidence, before certainty.</div>
+            <h1>
+              {workspace === "Workbench"
+                ? "A clearer view of what could break."
+                : workspace === "Fault Atlas"
+                  ? "Follow the fault through the code."
+                  : workspace === "Contract Studio"
+                    ? "Turn observations into testable intent."
+                    : workspace === "Repair Arena"
+                      ? "Let the evidence choose the repair."
+                      : "Every claim, with a chain of evidence."}
+            </h1>
+            <p className="intro-copy">
+              {workspace === "Workbench"
+                ? "Inspect structure. Discover counterexamples. Validate a minimal repair."
+                : "One investigation. Immutable revisions. Inspectable computation."}
+            </p>
+          </div>
+          <div className="intro-action flex-row">
+            <Badge tone={tone(a.job?.status)}>
+              {a.job?.status || "READY TO INVESTIGATE"}
+            </Badge>
+            {a.job ? (
+              <span className="hash">{a.job.id.slice(0, 8)}</span>
+            ) : (
+              <span className="label">PHASE 02</span>
+            )}
+          </div>
+        </div>
+        {a.error ? (
+          <div className="notice error" role="alert">
+            <div className="flex-row">
+              <span>{a.error}</span>
+              <Button variant="ghost" size="sm" onClick={() => void a.retry()}>
+                Retry connection
+              </Button>
+            </div>
           </div>
         ) : null}
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.55fr)_minmax(330px,1fr)] gap-5">
-          <section className="panel">
-            <div className="px-4 h-12 flex items-center justify-between border-b border-zinc-800">
-              <span className="text-xs text-zinc-300 flex gap-2 items-center">
-                <FileCode2 size={14} className="text-teal-400" />
-                {fixture ? `${fixture}.py` : "submission.py"}
-                <span className="text-zinc-600 ml-3">PYTHON</span>
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => upload.current?.click()}
-              >
-                <Upload size={13} /> Upload .py
-              </Button>
-              <input
-                ref={upload}
-                aria-label="Upload Python source"
-                type="file"
-                accept=".py,text/x-python"
-                hidden
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    if (file.size > 60000) {
-                      setError("Source limit is 60 KB");
-                      return;
-                    }
-                    setSource(await file.text());
-                    setTests([]);
-                    setTestJson("");
-                    setFixture(null);
-                    setReport(null);
-                  }
-                  e.target.value = "";
-                }}
-              />
-            </div>
-            <CodeEditor
-              value={source}
-              onChange={(v) => {
-                setSource(v);
-                setLine(null);
-              }}
-              findings={report?.source === source ? report.findings : EMPTY}
-              line={line}
-            />
-            <div className="border-t border-zinc-800 p-4 flex flex-wrap justify-between items-center gap-3">
-              <span className="text-xs text-zinc-500">
-                {source.split("\n").length} lines ·{" "}
-                {new TextEncoder().encode(source).length} bytes · {tests.length}{" "}
-                authored tests
-              </span>
-              <Button
-                disabled={busy || !source.trim()}
-                onClick={() => void run()}
-              >
-                <Play size={14} fill="currentColor" />
-                {busy ? "Analyzing…" : "Analyze source"}
-              </Button>
-            </div>
-            <details className="border-t border-zinc-800 p-4">
-              <summary>Authored tests / explicit expected outputs</summary>
-              <p className="text-xs text-zinc-500 mt-3">
-                JSON array: function, args, expected, has_expected: true, tier:
-                &quot;A&quot;, domain: &quot;CONFIRMED&quot;. Source assertions
-                are also extracted.
-              </p>
-              <textarea
-                aria-label="Authored tests JSON"
-                className="w-full mono mt-3 text-xs"
-                rows={5}
-                value={testJson}
-                onChange={(e) => setTestJson(e.target.value)}
-              />
-              <Button
-                className="mt-2"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  try {
-                    const parsed = JSON.parse(testJson || "[]");
-                    if (!Array.isArray(parsed))
-                      throw new Error("Tests must be an array");
-                    setTests(parsed as TestCase[]);
-                    setError("");
-                  } catch (e) {
-                    setError(String(e));
-                  }
-                }}
-              >
-                Apply test manifest
-              </Button>
-            </details>
-          </section>
-          <aside className="flex flex-col gap-4">
-            <section className="panel p-5">
-              <div className="flex justify-between items-center mb-5">
-                <span className="label">Investigation status</span>
-                <Badge tone={tone(job?.status)}>
-                  {job?.status || "AWAITING SOURCE"}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="size-10 border border-zinc-700 rounded-full flex items-center justify-center text-teal-400">
-                  <GitBranch size={19} />
-                </div>
-                <div>
-                  <p className="text-base font-medium">
-                    {job?.stage.replaceAll("_", " ") || "Ready when you are"}
-                  </p>
-                  <p className="text-xs text-zinc-500 mt-1">
-                    {job
-                      ? `Job ${job.id.slice(0, 12)} · immutable revision`
-                      : "Paste Python or choose a source fixture"}
-                  </p>
-                </div>
-              </div>
-              <div
-                aria-live="polite"
-                className="mt-5 max-h-47 overflow-y-auto space-y-3"
-              >
-                {events.length ? (
-                  events.map((e) => (
-                    <div key={e.id} className="flex gap-3 text-xs">
-                      <Check
-                        className="shrink-0 text-teal-500 mt-0.5"
-                        size={12}
-                      />
-                      <div>
-                        <span className="text-zinc-300 capitalize">
-                          {e.stage}
-                        </span>
-                        <p className="text-zinc-500 leading-relaxed mt-0.5">
-                          {e.message}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs leading-relaxed text-zinc-500">
-                    The timeline streams persisted worker events. Predictions
-                    and execution results appear after a real analysis.
-                  </p>
-                )}
-              </div>
-            </section>
-            <div className="grid grid-cols-2 gap-3">
-              <section className="panel p-4">
-                <div className="label">Highest function risk</div>
-                <p className="text-3xl tracking-tight mt-3 text-teal-300">
-                  {riskLabel(report?.overall_risk)}
-                </p>
-                <p className="text-[10px] mt-2 text-zinc-500">
-                  Learned training-label risk
-                </p>
-              </section>
-              <section className="panel p-4">
-                <div className="label">Evidence severity</div>
-                <p className="text-2xl mt-3">{report?.severity || "—"}</p>
-                <p className="text-[10px] mt-2 text-zinc-500">
-                  Impact policy, separate from ML
-                </p>
-              </section>
-            </div>
-            <section className="panel p-4 flex-1">
-              <div className="flex justify-between mb-4">
-                <span className="label">Decision</span>
-                <ShieldCheck size={15} className="text-zinc-500" />
-              </div>
-              <Badge tone={tone(report?.verdict)}>
-                {report?.verdict || "NOT YET ASSESSED"}
-              </Badge>
-              <p className="text-xs text-zinc-500 leading-relaxed mt-3">
-                {report?.runner.status === "EXECUTION_UNAVAILABLE"
-                  ? "Execution is disabled until Docker and the fixed runner image are available."
-                  : "Test validation applies to the recorded cases. An unconfirmed input domain or guessed output cannot certify a patch."}
-              </p>
-              <p className="text-[10px] text-zinc-600 mt-3">
-                Docker-only isolation · development-grade
-              </p>
-            </section>
-          </aside>
-        </div>
-        <div
-          className="mt-7 flex gap-1 border-b border-zinc-800 overflow-x-auto"
-          role="tablist"
-          aria-label="Analysis evidence"
-        >
-          {TABS.map((name, index) => (
-            <button
-              key={name}
-              id={`tab-${index}`}
-              role="tab"
-              aria-selected={tab === name}
-              aria-controls={`panel-${index}`}
-              onClick={() => setTab(name)}
-              className={`px-4 py-3 text-xs whitespace-nowrap border-b-2 ${tab === name ? "border-teal-400 text-teal-300" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
+        {a.connection === "reconnecting" ? (
+          <div className="notice" role="status">
+            Connection interrupted. Reconnecting to persisted events; the worker
+            continues independently.
+            <Button variant="ghost" size="sm" onClick={() => void a.retry()}>
+              Reconnect now
+            </Button>
+          </div>
+        ) : null}
+        {a.stale ? (
+          <div className="notice" role="status">
+            Source changed. Findings, markers and verdicts are invalidated for
+            this buffer.
+            <Button size="sm" variant="ghost" onClick={() => a.restore()}>
+              Restore analyzed snapshot
+            </Button>
+          </div>
+        ) : null}
+        {workspace === "Workbench" ? (
+          <>
+            <div
+              className="demo-launcher"
+              aria-label="Guided live demonstrations"
             >
-              {name}
-              {name === "Findings" && report
-                ? ` / ${report.findings.length}`
-                : ""}
-            </button>
-          ))}
-        </div>
-        <section
-          id={`panel-${TABS.indexOf(tab)}`}
-          role="tabpanel"
-          aria-labelledby={`tab-${TABS.indexOf(tab)}`}
-          className="mt-5 min-h-60"
-        >
-          {!report ? (
-            <div className="panel p-12 text-center">
-              <Braces size={28} className="mx-auto text-zinc-600 mb-4" />
-              <p className="text-sm text-zinc-300">
-                {busy
-                  ? "Investigation in progress"
-                  : "Evidence starts with your code"}
-              </p>
-              <p className="text-xs text-zinc-500 mt-2">
-                {busy
-                  ? "The worker is building this report. Follow its stages above."
-                  : "Run an analysis to inspect findings, generated cases, patches and provenance."}
-              </p>
+              {(
+                [
+                  [
+                    "binary_search",
+                    "Boundary, not a guess",
+                    "Reference oracle → minimal patch",
+                    GitBranch,
+                  ],
+                  [
+                    "average",
+                    "An unknown contract",
+                    "No hints → runtime witness → confirm",
+                    FlaskConical,
+                  ],
+                  [
+                    "caller_regression",
+                    "The caller trap",
+                    "A tempting fix, a real regression",
+                    ShieldCheck,
+                  ],
+                ] as const
+              ).map(([name, title, copy, Icon]) => (
+                <button
+                  className="panel demo-card"
+                  disabled={a.busy}
+                  key={name}
+                  onClick={() => void load(name)}
+                >
+                  <Icon className="demo-icon" size={17} strokeWidth={1.5} />
+                  <div>
+                    <strong>{title}</strong>
+                    <span>{copy}</span>
+                  </div>
+                  <ArrowUpRight size={12} className="muted ml-auto shrink-0" />
+                </button>
+              ))}
+              <div className="panel demo-card">
+                <Sparkles size={17} className="demo-icon" />
+                <div>
+                  <strong>Bring your own question</strong>
+                  <span>
+                    Paste or upload real Python. Nothing is precomputed.
+                  </span>
+                </div>
+              </div>
             </div>
-          ) : (
-            <>
-              {report.source !== source ? (
-                <p className="text-xs text-amber-300 mb-4">
-                  This report belongs to an earlier immutable source revision.
-                  Analyze again to assess the editor contents.
-                </p>
-              ) : null}
-              {tab === "Findings" ? (
-                <div className="grid lg:grid-cols-[1fr_340px] gap-5">
-                  <div className="space-y-3">
-                    {report.findings.length ? (
-                      report.findings.map((f) => (
+            <div className="panel workflow" aria-live="polite">
+              {STAGES.map(([stage, label]) => {
+                const done = a.events.some((e) => e.stage === stage);
+                const active = a.busy && a.job?.stage === stage;
+                return (
+                  <span className="workflow-step" key={stage}>
+                    <i
+                      className={`stage-dot ${active ? "stage-active" : done ? "stage-done" : ""}`}
+                    />
+                    {label}
+                    {active ? <span className="gold">· live</span> : null}
+                  </span>
+                );
+              })}
+            </div>
+            <div className="workspace-split" ref={editorTop}>
+              <section
+                className={`panel editor-shell ${fullscreen ? "editor-fullscreen" : ""}`}
+              >
+                <div className="editor-tabs">
+                  <div className="file-tabs">
+                    <button
+                      className={`file-tab ${tab !== "source" ? "inactive" : ""}`}
+                      onClick={() => setTab("source")}
+                    >
+                      <FileCode2 size={13} className="gold" />
+                      {a.fixture ? `${a.fixture}.py` : "submission.py"}
+                      {a.stale ? <CircleDot size={8} /> : null}
+                    </button>
+                    <button
+                      className={`file-tab ${tab !== "tests" ? "inactive" : ""}`}
+                      onClick={() => {
+                        setTab("tests");
+                        modal("tests");
+                      }}
+                    >
+                      <Braces size={12} />
+                      tests.json <span className="muted">{a.tests.length}</span>
+                    </button>
+                  </div>
+                  <div className="flex-row">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Upload Python file"
+                      disabled={a.busy}
+                      onClick={() => upload.current?.click()}
+                    >
+                      <Upload size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={
+                        fullscreen
+                          ? "Exit fullscreen editor"
+                          : "Fullscreen editor"
+                      }
+                      onClick={() => setFullscreen(!fullscreen)}
+                    >
+                      {fullscreen ? (
+                        <Minimize2 size={14} />
+                      ) : (
+                        <Maximize2 size={14} />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+                <div className="editor-body">
+                  <CodeEditor
+                    height="100%"
+                    value={a.source}
+                    onChange={edit}
+                    findings={report?.findings || EMPTY}
+                    line={line}
+                    theme={theme}
+                    onAnalyze={() => !a.busy && a.source.trim() && void a.run()}
+                    onSelect={chooseLine}
+                  />
+                </div>
+                <div className="editor-footer">
+                  <span>
+                    {a.source.split("\n").length} lines{" "}
+                    <span className="mx-2">·</span>
+                    {new TextEncoder().encode(a.source).length} bytes{" "}
+                    <span className="desktop-only ml-3">UTF-8 / Python</span>
+                  </span>
+                  <div className="flex-row">
+                    <span className="desktop-only muted flex-row">
+                      <Command size={11} />↵
+                    </span>
+                    <Button
+                      size="sm"
+                      disabled={a.busy || !a.source.trim()}
+                      onClick={() => {
+                        setSelected(0);
+                        void a.run();
+                      }}
+                    >
+                      <Play size={12} fill="currentColor" />
+                      {a.busy ? "Investigating…" : "Analyze source"}
+                    </Button>
+                  </div>
+                </div>
+              </section>
+              <aside className="evidence-rail">
+                <section className="panel rail-section">
+                  <div className="flex-row justify-between">
+                    <span className="label">Evidence rail</span>
+                    <span className="gold">
+                      <CircleDot size={12} />
+                    </span>
+                  </div>
+                  {finding ? (
+                    <>
+                      <div className="flex-row mt-4">
+                        <Badge
+                          tone={finding.severity === "HIGH" ? "bad" : "warn"}
+                        >
+                          {finding.severity}
+                        </Badge>
+                        <code className="text-[10px] muted">
+                          {finding.function}:{finding.span.start_line}
+                        </code>
+                      </div>
+                      <h3 className="finding-title">
+                        {finding.rule_id.replaceAll("_", " ").toLowerCase()}
+                      </h3>
+                      <p className="finding-copy">{finding.explanation}</p>
+                      <div className="mt-3">
+                        <Badge>{finding.evidence}</Badge>
+                      </div>
+                      <p className="text-[10px] muted mt-3">
+                        {finding.qualification}
+                      </p>
+                      {ranked
+                        ? Object.entries(
+                            ranked.signals as Record<string, number | null>,
+                          ).map(([key, value]) => (
+                            <div className="signal-row" key={key}>
+                              <span>{key.replaceAll("_", " ")}</span>
+                              <div className="signal-bar">
+                                <i
+                                  style={{ width: `${(value || 0) * 100}%` }}
+                                />
+                              </div>
+                              <code>
+                                {value == null ? "—" : value.toFixed(2)}
+                              </code>
+                            </div>
+                          ))
+                        : null}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-5 w-full"
+                        onClick={() => setWorkspace("Contract Studio")}
+                      >
+                        Inspect inputs & witnesses
+                        <ArrowRight size={12} />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="mt-5 mb-2">
+                        Select a question. Follow its evidence.
+                      </h3>
+                      <p className="finding-copy">
+                        Findings and graph nodes reveal source, model, rule and
+                        execution contributions here.
+                      </p>
+                      <div className="metric-inline mt-4">
+                        <span className="muted">Modeled function risk</span>
+                        <strong>{riskLabel(report?.overall_risk)}</strong>
+                      </div>
+                      <div className="metric-inline">
+                        <span className="muted">Severity</span>
+                        <strong>{report?.severity || "Not assessed"}</strong>
+                      </div>
+                    </>
+                  )}
+                </section>
+                <section className="panel rail-section">
+                  <div className="flex-row justify-between">
+                    <span className="label">Current decision</span>
+                    <ShieldCheck size={13} className="muted" />
+                  </div>
+                  <div className="mt-4" data-testid="verdict">
+                    <Badge tone={tone(report?.verdict)}>
+                      {report?.verdict ||
+                        (a.busy ? "COMPUTING EVIDENCE" : "AWAITING ANALYSIS")}
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] muted mt-3">
+                    A learned risk is a prediction. Passing recorded tests
+                    supports only the tested behavior.
+                  </p>
+                  {report?.runner.status === "EXECUTION_UNAVAILABLE" ? (
+                    <div className="notice mt-3">
+                      Runner unavailable. Static analysis continues; execution
+                      fails closed.
+                    </div>
+                  ) : null}
+                  <span className="label text-[8px]">
+                    Docker isolation / development-grade
+                  </span>
+                </section>
+              </aside>
+            </div>
+            <div className="bottom-evidence">
+              <section className="panel">
+                <div className="panel-heading">
+                  <h2>Lines worth investigating</h2>
+                  <span className="label">
+                    {report?.findings.length || 0} findings
+                  </span>
+                </div>
+                <div className="panel-body">
+                  {report?.findings.length ? (
+                    <div className="finding-list">
+                      {report.findings.map((f) => (
                         <button
                           key={f.id}
-                          onClick={() => focus(f.span.start_line)}
-                          className="panel w-full p-5 text-left hover:border-zinc-500 transition-colors"
+                          className={`panel finding ${finding?.id === f.id ? "selected" : ""}`}
+                          onClick={() => chooseFinding(f.span.start_line)}
                         >
-                          <div className="flex flex-wrap gap-2 items-center">
+                          <div className="flex-row justify-between">
+                            <code className="text-[10px] gold">
+                              L{f.span.start_line} · {f.function}
+                            </code>
                             <Badge
                               tone={f.severity === "HIGH" ? "bad" : "warn"}
                             >
                               {f.severity}
                             </Badge>
-                            <span className="text-xs mono text-zinc-400">
-                              {f.function} : {f.span.start_line}
-                            </span>
-                            <ArrowUpRight
-                              className="ml-auto text-zinc-500"
-                              size={15}
-                            />
                           </div>
-                          <h3 className="text-sm mt-3">{f.rule_id}</h3>
-                          <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
-                            {f.explanation}
-                          </p>
-                          <div className="mt-3">
-                            <Badge>{f.evidence}</Badge>
-                            <p className="text-[11px] text-zinc-600 mt-2">
-                              {f.qualification}
-                            </p>
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="panel p-8 text-sm text-zinc-500">
-                        No supported rule findings. This does not prove absence
-                        of defects.
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    <div className="panel p-4">
-                      <p className="label mb-4">Function predictions</p>
-                      {report.functions.map((f) => (
-                        <div
-                          key={`${f.name}-${f.span.start_line}`}
-                          className="py-3 border-b border-zinc-800"
-                        >
-                          <button
-                            onClick={() => focus(f.span.start_line)}
-                            className="flex justify-between w-full text-xs"
-                          >
-                            <code>{f.name}</code>
-                            <span className="text-teal-300">
-                              {riskLabel(f.risk)}
-                            </span>
-                          </button>
-                          <div className="h-1 rounded bg-zinc-800 my-2">
-                            <div
-                              className="h-1 rounded bg-teal-500"
-                              style={{ width: `${(f.risk || 0) * 100}%` }}
-                            />
-                          </div>
-                          <p className="text-[10px] text-zinc-500">
-                            {f.family || "Family unavailable"}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="panel p-4">
-                      <p className="label mb-4">Suspicious statements</p>
-                      {report.localization.slice(0, 8).map((r, i) => (
-                        <button
-                          key={`${r.function}-${r.line}`}
-                          className="w-full flex justify-between text-xs py-2 text-zinc-400"
-                          onClick={() => focus(Number(r.line))}
-                        >
-                          <span>
-                            {i + 1}. Line {String(r.line)} ·{" "}
-                            {String(r.function)}
-                          </span>
-                          <span className="text-teal-400">
-                            {Number(r.score).toFixed(3)}
-                          </span>
+                          <h3 className="finding-title">
+                            {f.rule_id.replaceAll("_", " ").toLowerCase()}
+                          </h3>
+                          <p className="finding-copy">{f.explanation}</p>
                         </button>
                       ))}
-                      <details className="mt-3">
-                        <summary>Each ranking signal</summary>
-                        <pre>
-                          {JSON.stringify(
-                            report.localization.slice(0, 12),
-                            null,
-                            2,
-                          )}
-                        </pre>
-                      </details>
                     </div>
-                  </div>
-                </div>
-              ) : null}
-              {tab === "Generated tests" ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between flex-wrap gap-3 items-center">
-                    <div>
-                      <h2 className="text-lg">Inputs, oracles & witnesses</h2>
-                      <p className="text-xs text-zinc-500 mt-2">
-                        A: exact expectation · B: declared property · I:
-                        operational fault · C: exploratory. Domain is a separate
-                        gate.
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() =>
-                        void run(`/v1/analyses/${report.job_id}/tests`, {})
+                  ) : (
+                    <Empty
+                      title={
+                        report
+                          ? "No supported rule finding"
+                          : "Evidence will appear here"
                       }
-                    >
-                      <FlaskConical size={14} /> New test revision
-                    </Button>
+                      copy={
+                        report
+                          ? "No supported rule fired. This does not prove the code is defect free."
+                          : "Run an analysis to connect each prediction to a source span and an observable check."
+                      }
+                    />
+                  )}
+                </div>
+              </section>
+              <section className="panel">
+                <div className="panel-heading">
+                  <h2>Computation journal</h2>
+                  <Badge>
+                    {a.connection === "live"
+                      ? "LIVE / SSE"
+                      : a.events.length
+                        ? "PERSISTED"
+                        : "NOT STARTED"}
+                  </Badge>
+                </div>
+                <div className="panel-body">
+                  <Timeline events={a.events} />
+                  {!a.events.length ? (
+                    <p className="muted text-xs">
+                      Actual worker events and timestamps. No simulated
+                      progress.
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            </div>
+          </>
+        ) : !report ? (
+          <Empty
+            title={
+              a.busy
+                ? "The worker is investigating"
+                : a.stale
+                  ? "This buffer needs a new investigation"
+                  : "An investigation connects these workspaces"
+            }
+            copy={
+              a.busy
+                ? "Persisted computation continues. Return to Workbench to follow its live stages."
+                : "Analyze source in Workbench to inspect this evidence."
+            }
+          />
+        ) : (
+          <>
+            {workspace === "Fault Atlas" ? (
+              <>
+                <div className="workspace-split">
+                  <Atlas
+                    report={report}
+                    onSelect={chooseLine}
+                    line={line}
+                    dark={theme === "dark"}
+                  />
+                  <section className="panel rail-section">
+                    <span className="label">Ranked source spans</span>
+                    {report.localization.slice(0, 14).map((r, i) => (
+                      <button
+                        key={`${r.function}-${r.line}`}
+                        className="metric-inline w-full text-left"
+                        onClick={() => chooseFinding(Number(r.line))}
+                      >
+                        <span>
+                          <span className="muted mr-2">{i + 1}.</span>
+                          <code>
+                            {String(r.function)}:{String(r.line)}
+                          </code>
+                        </span>
+                        <code className="gold">
+                          {Number(r.score).toFixed(3)}
+                        </code>
+                      </button>
+                    ))}
+                  </section>
+                </div>
+                <div className="bottom-evidence">
+                  <section className="panel panel-body">
+                    <h2 className="mb-4">Learned function estimates</h2>
+                    {report.functions.map((f) => (
+                      <div
+                        className="metric-inline"
+                        key={`${f.name}-${f.span.start_line}`}
+                      >
+                        <button
+                          onClick={() => chooseFinding(f.span.start_line)}
+                        >
+                          <code>{f.name}</code>
+                        </button>
+                        <div className="flex-row">
+                          <Badge>{f.family || "UNKNOWN"}</Badge>
+                          <span className="gold mono">{riskLabel(f.risk)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                  <section className="panel panel-body">
+                    <h2 className="mb-4">Selected contributions</h2>
+                    <Json value={ranked || report.localization[0]} />
+                  </section>
+                </div>
+                <Experiment
+                  title="Blast radius"
+                  data={details.blast_radius}
+                  busy={a.busy}
+                  run={investigate}
+                />
+              </>
+            ) : null}
+            {workspace === "Contract Studio" ? (
+              <>
+                <div className="page-intro">
+                  <div>
+                    <h2>Counterexample & Contract Studio</h2>
+                    <p className="intro-copy">
+                      A · exact expected behavior / B · justified property / I ·
+                      operational fault / C · exploratory
+                    </p>
                   </div>
-                  <div className="panel overflow-x-auto">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Function / input</th>
-                          <th>Oracle / domain</th>
-                          <th>Original observation</th>
-                          <th>Expectation</th>
-                          <th>Exact-case confirmation</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {report.tests.map((t) => {
-                          const r = resultById.get(t.id);
-                          return (
-                            <tr key={t.id}>
-                              <td>
-                                <code>
-                                  {t.function}({JSON.stringify(t.args)})
-                                </code>
-                                <p className="text-[10px] text-zinc-600 mt-2 max-w-65">
-                                  {t.reason}
-                                </p>
-                              </td>
-                              <td>
-                                <Badge>{t.tier}</Badge>
-                                <p className="text-[10px] mt-2 text-zinc-500">
-                                  {t.domain}
-                                </p>
-                              </td>
-                              <td>
-                                <Badge tone={observationTone(t, r)}>
-                                  {observationLabel(t, r)}
-                                </Badge>
-                                <p className="mono text-[11px] mt-2 max-w-60 break-all">
-                                  {observed(r)}
-                                </p>
-                              </td>
-                              <td className="mono">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={a.busy}
+                    onClick={() =>
+                      void a.run(`/v1/analyses/${report.job_id}/tests`, {})
+                    }
+                  >
+                    <FlaskConical size={13} />
+                    Generate a new revision
+                  </Button>
+                </div>
+                <div className="data-grid mb-5">
+                  {report.inference.map((entry, i) => (
+                    <section className="panel panel-body" key={i}>
+                      <span className="label">Inferred signature</span>
+                      <h3 className="mono mt-3">{String(entry.function)}</h3>
+                      <Json value={entry.parameters || entry.unsupported} />
+                    </section>
+                  ))}
+                </div>
+                <div className="panel table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Input / source</th>
+                        <th>Oracle / domain</th>
+                        <th>Observation</th>
+                        <th>Expected</th>
+                        <th>Next action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.tests.map((t) => {
+                        const r = originals.get(t.id);
+                        return (
+                          <tr key={t.id}>
+                            <td>
+                              <code>
+                                {t.function}({JSON.stringify(t.args)})
+                              </code>
+                              <p className="muted text-[10px] max-w-64 mt-2">
+                                {t.reason}
+                              </p>
+                            </td>
+                            <td>
+                              <Badge>{t.tier}</Badge>
+                              <p className="text-[9px] muted mt-2">
+                                {t.domain}
+                              </p>
+                            </td>
+                            <td>
+                              <Badge tone={observationTone(t, r)}>
+                                {observationLabel(t, r)}
+                              </Badge>
+                              <p className="mono text-[10px] mt-2 max-w-56 break-all">
+                                {observed(r)}
+                              </p>
+                            </td>
+                            <td>
+                              <code>
                                 {t.has_expected
                                   ? JSON.stringify(t.expected)
                                   : t.property || "No output oracle"}
-                              </td>
-                              <td>
+                              </code>
+                            </td>
+                            <td>
+                              <div className="flex flex-col gap-2 items-start">
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  disabled={busy}
-                                  onClick={() => {
-                                    setConfirmTest(t.id);
-                                    setExpected(
-                                      t.has_expected
-                                        ? JSON.stringify(t.expected)
-                                        : "",
-                                    );
-                                  }}
+                                  disabled={a.busy}
+                                  onClick={() => confirm(t.id)}
                                 >
-                                  Confirm output
+                                  Edit expected
                                 </Button>
                                 {t.domain !== "CONFIRMED" ? (
                                   <Button
-                                    variant="ghost"
                                     size="sm"
-                                    className="mt-2 block"
-                                    disabled={busy}
+                                    variant="ghost"
+                                    disabled={a.busy}
                                     onClick={() =>
-                                      void run(
+                                      void a.run(
                                         `/v1/analyses/${report.job_id}/contracts/domain`,
                                         {
                                           test_ids: [t.id],
@@ -679,379 +851,641 @@ export default function Workbench() {
                                       )
                                     }
                                   >
-                                    Accept exact input domain
+                                    Confirm input domain
                                   </Button>
                                 ) : null}
+                                {details.actions ? (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={a.busy}
+                                    onClick={() =>
+                                      investigate("replay", { test_id: t.id })
+                                    }
+                                  >
+                                    <RotateCcw size={11} />
+                                    Replay
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <Experiment
+                  title="Counterexample Studio"
+                  data={details.witness || report.structure.minimal_witness}
+                  action={details.actions ? "witness" : undefined}
+                  busy={a.busy}
+                  run={investigate}
+                />
+                <Experiment
+                  title="Metamorphic Shield"
+                  data={details.metamorphic}
+                  action={details.actions ? "metamorphic" : undefined}
+                  busy={a.busy}
+                  run={investigate}
+                />
+                <Experiment
+                  title="Replay"
+                  data={details.replay}
+                  busy={a.busy}
+                  run={investigate}
+                />
+              </>
+            ) : null}
+            {workspace === "Repair Arena" ? (
+              <>
+                <div className="page-intro">
+                  <div>
+                    <h2>Candidate tournament</h2>
+                    <p className="intro-copy">
+                      Same frozen tests. Explicit gates. Correctness before
+                      footprint.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={a.busy}
+                    onClick={() => modal("candidate")}
+                  >
+                    Validate your own candidate
+                  </Button>
+                </div>
+                <div className="candidate-strip">
+                  {report.candidates.map((c, i) => (
+                    <button
+                      key={c.id}
+                      className="panel candidate-option"
+                      aria-pressed={candidate?.id === c.id}
+                      onClick={() => setSelected(i)}
+                    >
+                      <span className="label">
+                        Candidate {i + 1}{" "}
+                        <span className="gold">
+                          / {c.changed_lines} changed lines
+                        </span>
+                      </span>
+                      <p className="text-xs my-3">
+                        {c.operator.replaceAll("_", " ").toLowerCase()}
+                      </p>
+                      <Badge tone={tone(c.verdict)}>{c.verdict}</Badge>
+                    </button>
+                  ))}
+                </div>
+                {candidate ? (
+                  <>
+                    <div className="arena-details">
+                      <div className="panel editor-shell">
+                        <div className="panel-heading">
+                          <span className="label">
+                            Original → candidate {selected + 1}
+                          </span>
+                          <code className="text-[9px] muted">
+                            {candidate.id.slice(0, 12)}
+                          </code>
+                        </div>
+                        <div className="diff-shell">
+                          <PatchDiff
+                            original={report.source}
+                            modified={candidate.source}
+                            theme={theme}
+                          />
+                        </div>
+                      </div>
+                      <section className="panel panel-body">
+                        <h2 className="mb-4">
+                          Why this repair{" "}
+                          {candidate.verdict.startsWith("VALIDATED")
+                            ? "survives"
+                            : "does not win"}
+                        </h2>
+                        <Badge tone={tone(candidate.verdict)}>
+                          {candidate.verdict}
+                        </Badge>
+                        <div className="mt-4">
+                          {candidate.checks
+                            .filter(
+                              (c) =>
+                                c.regression ||
+                                c.original !== c.patched ||
+                                c.gate === "syntax_security_applicability",
+                            )
+                            .slice(0, 9)
+                            .map((check, index) => (
+                              <div className="gate" key={index}>
+                                <code className="text-[10px]">
+                                  {String(check.test_id || check.gate).slice(
+                                    0,
+                                    16,
+                                  )}
+                                </code>
+                                <span>
+                                  {String(
+                                    check.reason ||
+                                      `${check.original} → ${check.patched}`,
+                                  )}
+                                </span>
+                                {check.regression ? (
+                                  <Badge tone="bad">REGRESSION</Badge>
+                                ) : null}
+                              </div>
+                            ))}
+                        </div>
+                        <div className="metric-inline mt-3">
+                          <span className="muted">
+                            Historical operator prior
+                          </span>
+                          <code>{candidate.prior.toFixed(3)}</code>
+                        </div>
+                        <div className="metric-inline">
+                          <span className="muted">Runtime conclusion</span>
+                          <span className="text-[9px]">
+                            {String(candidate.performance.status)}
+                          </span>
+                        </div>
+                        <details className="mt-4">
+                          <summary>Context, affected callers & timing</summary>
+                          <Json
+                            value={{
+                              context: candidate.context,
+                              performance: candidate.performance,
+                            }}
+                          />
+                        </details>
+                      </section>
+                    </div>
+                    <div className="panel table-scroll mt-5">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Input</th>
+                            <th>Original</th>
+                            <th>Candidate</th>
+                            <th>Gate</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {report.tests.map((t) => (
+                            <tr key={t.id}>
+                              <td>
+                                <code>
+                                  {t.function}({JSON.stringify(t.args)})
+                                </code>
+                              </td>
+                              <td>
+                                <Badge
+                                  tone={observationTone(t, originals.get(t.id))}
+                                >
+                                  {observationLabel(t, originals.get(t.id))}
+                                </Badge>
+                                <p className="mono text-[10px] mt-2">
+                                  {observed(originals.get(t.id))}
+                                </p>
+                              </td>
+                              <td>
+                                <Badge
+                                  tone={observationTone(t, patched.get(t.id))}
+                                >
+                                  {observationLabel(t, patched.get(t.id))}
+                                </Badge>
+                                <p className="mono text-[10px] mt-2">
+                                  {observed(patched.get(t.id))}
+                                </p>
+                              </td>
+                              <td className="muted">
+                                {t.tier} / {t.domain}
                               </td>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  {confirmation ? (
-                    <div className="panel p-5 border-teal-800">
-                      <h3 className="text-sm mb-3">
-                        Confirm one exact expected result
-                      </h3>
-                      <p className="mono text-xs mb-3">
-                        {confirmation.function}(
-                        {JSON.stringify(confirmation.args)})
-                      </p>
-                      <label
-                        className="text-xs text-zinc-400 block mb-2"
-                        htmlFor="expected-output"
-                      >
-                        Expected output (JSON)
-                      </label>
-                      <div className="flex gap-3">
-                        <input
-                          id="expected-output"
-                          className="flex-1 min-w-0 mono text-sm"
-                          value={expected}
-                          onChange={(e) => setExpected(e.target.value)}
-                        />
-                        <Button
-                          disabled={busy || !expected.trim()}
-                          onClick={() => {
-                            try {
-                              const value: unknown = JSON.parse(expected);
-                              void run(
-                                `/v1/analyses/${report.job_id}/contracts/confirm`,
-                                {
-                                  function: confirmation.function,
-                                  args: confirmation.args,
-                                  kwargs: confirmation.kwargs,
-                                  expected: value,
-                                  reviewer: "workbench-user",
-                                },
-                              );
-                            } catch (e) {
-                              setError(String(e));
-                            }
-                          }}
-                        >
-                          Confirm & rerun
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          onClick={() => setConfirmTest(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                      <p className="text-xs text-zinc-500 mt-3">
-                        Creates a versioned A oracle for this tuple. Earlier
-                        reports remain immutable.
-                      </p>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                  ) : null}
-                  <details className="panel p-5">
-                    <summary>
-                      Inferred strategies, trial outcomes & smallest witness
-                    </summary>
-                    <pre>
-                      {JSON.stringify(
-                        {
-                          inference: report.inference,
-                          witness: report.structure.minimal_witness,
-                        },
-                        null,
-                        2,
-                      )}
-                    </pre>
-                  </details>
-                </div>
-              ) : null}
-              {tab === "Repair tournament" ? (
-                <div className="space-y-5">
-                  <div className="flex gap-3 flex-wrap">
-                    {report.candidates.map((c, i) => (
-                      <button
-                        key={c.id}
-                        onClick={() => setSelected(i)}
-                        className={`panel p-4 text-left ${selected === i ? "border-teal-600" : ""}`}
-                      >
-                        <span className="label">
-                          Candidate {i + 1} · {c.changed_lines} changed lines
-                        </span>
-                        <p className="text-xs my-2">{c.operator}</p>
-                        <Badge tone={tone(c.verdict)}>{c.verdict}</Badge>
-                      </button>
-                    ))}
-                  </div>
-                  {candidate ? (
-                    <>
-                      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4">
-                        <div className="panel p-5">
-                          <p className="label mb-4">Immutable candidate diff</p>
-                          <pre className="text-zinc-300">
-                            {candidate.diff.split("\n").map((text, i) => (
-                              <span
-                                className={`block ${text.startsWith("+") ? "text-teal-300 bg-teal-950/40" : text.startsWith("-") ? "text-rose-300 bg-rose-950/30" : ""}`}
-                                key={i}
-                              >
-                                {text || " "}
-                              </span>
-                            ))}
-                          </pre>
-                        </div>
-                        <div className="panel p-5">
-                          <p className="label mb-4">
-                            Validation & optimization
-                          </p>
-                          <Badge tone={tone(candidate.verdict)}>
-                            {candidate.verdict}
-                          </Badge>
-                          <p className="text-xs text-zinc-400 mt-4">
-                            Precedent operator prior:{" "}
-                            {candidate.prior.toFixed(3)}
-                          </p>
-                          <p className="text-xs text-amber-300 mt-3">
-                            {String(candidate.performance.status)}
-                          </p>
-                          <details className="mt-4">
-                            <summary>Runtime samples and context</summary>
-                            <pre>
-                              {JSON.stringify(
-                                {
-                                  performance: candidate.performance,
-                                  context: candidate.context,
-                                },
-                                null,
-                                2,
-                              )}
-                            </pre>
-                          </details>
-                        </div>
-                      </div>
-                      <div className="panel overflow-x-auto">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Input</th>
-                              <th>Original</th>
-                              <th>Patched</th>
-                              <th>Gate</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {report.tests.map((t) => {
-                              const a = resultById.get(t.id),
-                                b = patchedById.get(t.id);
-                              return (
-                                <tr key={t.id}>
-                                  <td className="mono">
-                                    {t.function}({JSON.stringify(t.args)})
-                                  </td>
-                                  <td>
-                                    <Badge tone={observationTone(t, a)}>
-                                      {observationLabel(t, a)}
-                                    </Badge>
-                                    <p className="mono mt-2">{observed(a)}</p>
-                                  </td>
-                                  <td>
-                                    <Badge tone={observationTone(t, b)}>
-                                      {observationLabel(t, b)}
-                                    </Badge>
-                                    <p className="mono mt-2">{observed(b)}</p>
-                                  </td>
-                                  <td className="text-zinc-500">
-                                    {t.tier} / {t.domain}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="panel p-8 text-sm text-zinc-500">
-                      No bounded applicable template was found. Predictions are
-                      available; the repair remains unresolved.
+                  </>
+                ) : (
+                  <Empty
+                    title="No eligible bounded repair"
+                    copy="The analyzer found no applicable template. This remains an unresolved investigation; a user candidate can still be validated."
+                  />
+                )}
+                <Experiment
+                  title="Repair Tournament"
+                  data={details.tournament}
+                  busy={a.busy}
+                  run={investigate}
+                />
+                <Experiment
+                  title="Repair Risk Budget"
+                  data={details.risk_budget}
+                  busy={a.busy}
+                  run={investigate}
+                />
+                <Experiment
+                  title="Precedent comparison"
+                  data={details.precedents}
+                  action={details.actions ? "precedents" : undefined}
+                  busy={a.busy}
+                  run={investigate}
+                />
+              </>
+            ) : null}
+            {workspace === "Model Lab & Vault" ? (
+              <>
+                <div className="data-grid">
+                  <section className="panel panel-body">
+                    <div className="flex-row justify-between">
+                      <h2>Model Lab</h2>
+                      <Badge>{String(report.model.status)}</Badge>
                     </div>
-                  )}
-                  <details className="panel p-5">
-                    <summary>Validate a candidate you provide</summary>
-                    <label
-                      className="block text-xs text-zinc-500 mt-3 mb-2"
-                      htmlFor="custom-patch"
-                    >
-                      Complete candidate source; validated as a new immutable
-                      job
-                    </label>
-                    <textarea
-                      id="custom-patch"
-                      className="w-full mono text-xs"
-                      rows={10}
-                      value={customPatch}
-                      onChange={(e) => setCustomPatch(e.target.value)}
-                    />
+                    <p className="intro-copy">
+                      Small held-out cohorts. No measured ML localization
+                      uplift.
+                    </p>
+                    <div className="metric-inline mt-4">
+                      <span>Calibration</span>
+                      <span className="text-[9px]">
+                        {String(report.model.calibration)}
+                      </span>
+                    </div>
+                    <p className="hash mt-3">
+                      Model {String(report.model.model_id || "unavailable")}
+                    </p>
+                    <ModelMetrics report={report} />
+                    <details className="mt-5">
+                      <summary>
+                        Full metrics, family confusion matrices & cohort
+                        manifest
+                      </summary>
+                      <Json
+                        value={{
+                          metrics: report.model.metrics,
+                          cohorts: report.model.cohorts,
+                        }}
+                      />
+                    </details>
+                  </section>
+                  <section className="panel panel-body">
+                    <div className="flex-row justify-between">
+                      <h2>Evidence Vault</h2>
+                      <Download size={14} className="gold" />
+                    </div>
+                    <div className="mt-5">
+                      {[
+                        ["Source", report.source_hash],
+                        ["Tests", report.test_revision],
+                        ["Runner", report.runner.digest],
+                        ["Model", report.model.model_id],
+                      ].map(([key, value]) => (
+                        <div className="mb-4" key={String(key)}>
+                          <span className="label">{String(key)}</span>
+                          <p className="hash mt-1">
+                            {String(value || "Unavailable")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                     <Button
-                      className="mt-3"
-                      disabled={busy || !customPatch.trim()}
+                      size="sm"
                       onClick={() =>
-                        void run(
-                          `/v1/analyses/${report.job_id}/patches/validate`,
-                          { source: customPatch },
+                        downloadBundle(
+                          `/api/v1/analyses/${report.job_id}/bundle`,
                         )
                       }
                     >
-                      Validate candidate
+                      <Download size={12} />
+                      Download replayable bundle
                     </Button>
-                  </details>
+                    <p className="text-[10px] muted mt-3">
+                      Integrity hashes establish content identity, not proof of
+                      correctness.
+                    </p>
+                  </section>
                 </div>
-              ) : null}
-              {tab === "Structure" ? (
-                <div className="space-y-4">
-                  <div className="grid sm:grid-cols-3 gap-4">
-                    {[
-                      ["Functions", report.functions.length],
-                      ["Graph nodes", nodes?.nodes?.length || 0],
-                      ["Graph edges", nodes?.edges?.length || 0],
-                    ].map(([label, value]) => (
-                      <div className="panel p-5" key={label}>
-                        <p className="label">{label}</p>
-                        <p className="text-3xl mt-3">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <details className="panel p-5" open>
-                    <summary>AST summary, CFG, def-use and call graph</summary>
-                    <pre className="max-h-120 overflow-auto">
-                      {JSON.stringify(report.structure, null, 2)}
-                    </pre>
-                  </details>
-                  <details className="panel p-5">
-                    <summary>Static Ruff / Bandit observations</summary>
-                    <pre className="max-h-100 overflow-auto">
-                      {JSON.stringify(report.scanners, null, 2)}
-                    </pre>
-                  </details>
-                </div>
-              ) : null}
-              {tab === "Models & history" ? (
-                <div className="grid lg:grid-cols-2 gap-5">
-                  <div className="panel p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Zap size={16} className="text-teal-400" />
-                      <h2 className="text-sm">Independent model provenance</h2>
-                    </div>
-                    <Badge>{String(report.model.status)}</Badge>
-                    <p className="text-xs text-zinc-400 mt-4">
-                      {String(report.model.calibration)}
-                    </p>
-                    <p className="text-xs text-zinc-500 mt-3 break-all">
-                      Model ID: {String(report.model.model_id || "Unavailable")}
-                    </p>
-                    <p className="text-xs text-amber-300 mt-4">
-                      {String(report.model.novelty)}
-                    </p>
-                    <p className="text-xs text-zinc-500 mt-2">
-                      Historical unfamiliarity does not prove a bug.
-                    </p>
-                    <details className="mt-4">
-                      <summary>
-                        Measured metrics, confusion matrices & ML ablation
-                      </summary>
-                      <pre className="max-h-120 overflow-auto">
-                        {JSON.stringify(
-                          modelMetrics || { status: "UNAVAILABLE" },
-                          null,
-                          2,
-                        )}
-                      </pre>
-                    </details>
-                    <details className="mt-4">
-                      <summary>Frozen cohort manifest</summary>
-                      <pre className="max-h-80 overflow-auto">
-                        {JSON.stringify(report.model.cohorts || {}, null, 2)}
-                      </pre>
-                    </details>
-                  </div>
-                  <div className="space-y-3">
-                    <p className="label">Train-only precedent engine</p>
+                <div className="data-grid mt-5">
+                  <section className="panel panel-body">
+                    <h2 className="mb-5">Historical analogies</h2>
                     {report.precedents.length ? (
                       report.precedents.map((p) => (
-                        <div className="panel p-4" key={String(p.id)}>
-                          <div className="flex justify-between gap-3">
-                            <code className="text-xs break-all text-zinc-300">
-                              {String(p.id)}
-                            </code>
-                            <Badge>
-                              {(Number(p.similarity) * 100).toFixed(1)}% SIM
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-zinc-500 mt-3">
-                            {String(p.edit_summary)} · {String(p.domain)}
-                          </p>
-                          <details className="mt-3">
-                            <summary>
-                              Historical analogy · not an oracle
-                            </summary>
-                            <pre>{String(p.diff)}</pre>
-                          </details>
-                        </div>
+                        <details
+                          className="py-3 border-b border-[var(--border)]"
+                          key={String(p.id)}
+                        >
+                          <summary>
+                            <span className="gold mono mr-2">
+                              {(Number(p.similarity) * 100).toFixed(1)}%
+                            </span>
+                            {String(p.edit_summary)
+                              .replaceAll("_", " ")
+                              .toLowerCase()}
+                            <span className="label ml-2">TRAIN ONLY</span>
+                          </summary>
+                          <p className="hash">{String(p.id)}</p>
+                          <pre>{String(p.diff)}</pre>
+                          <p className="hash">{String(p.origin)}</p>
+                        </details>
                       ))
                     ) : (
-                      <div className="panel p-6 text-sm text-zinc-500">
-                        No eligible historical precedent.
-                      </div>
+                      <p className="muted">
+                        No eligible neighbor. Similarity never establishes
+                        correctness.
+                      </p>
                     )}
-                  </div>
+                  </section>
+                  <section className="panel panel-body">
+                    <h2 className="mb-5">Persisted event timeline</h2>
+                    <Timeline events={a.events} />
+                    <details className="mt-5">
+                      <summary>Scope and execution limits</summary>
+                      <Json value={report.limitations} />
+                    </details>
+                  </section>
                 </div>
-              ) : null}
-            </>
-          )}
-        </section>
-        <footer className="border-t border-zinc-800 mt-8 pt-5 pb-2">
-          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
-            {Object.entries(
-              report?.outputs ||
-                Object.fromEntries(
-                  Array.from({ length: 8 }, (_, i) => [
-                    `M${i + 1}`,
-                    { status: "UNAVAILABLE" },
-                  ]),
-                ),
-            ).map(([key, value]) => (
-              <div className="text-[10px] text-zinc-600" key={key}>
-                <span className="flex items-center gap-1">
-                  <CircleDot
-                    size={9}
+                <Experiment
+                  title="Novelty Radar"
+                  data={details.novelty}
+                  busy={a.busy}
+                  run={investigate}
+                />
+                <Experiment
+                  title="Proof-Carrying Patch Ledger"
+                  data={details.ledger}
+                  action={details.actions ? "ledger" : undefined}
+                  busy={a.busy}
+                  run={investigate}
+                />
+                <Experiment
+                  title="Semantic Twin Challenge"
+                  data={details.twin}
+                  action={details.actions ? "twin" : undefined}
+                  busy={a.busy}
+                  run={investigate}
+                />
+              </>
+            ) : null}
+          </>
+        )}
+        <footer className="workspace-footer">
+          <div className="module-dots">
+            {Array.from({ length: 8 }, (_, i) => {
+              const entry = Object.entries(report?.outputs || {}).find(
+                ([key]) => key.startsWith(`M${i + 1}_`),
+              );
+              return (
+                <span key={i}>
+                  <i
                     className={
-                      (value as { status?: string }).status === "AVAILABLE"
-                        ? "text-teal-500"
-                        : "text-zinc-600"
+                      entry &&
+                      (entry[1] as { status: string }).status === "AVAILABLE"
+                        ? "available"
+                        : ""
                     }
                   />
-                  {key.split("_").slice(0, 2).join(" ")}
+                  M{i + 1}
                 </span>
-                <span className="block mt-1">
-                  {String((value as { status?: string }).status)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <details className="mt-5">
-            <summary>Scope, evidence limits & source hashes</summary>
-            <pre>
-              {JSON.stringify(
-                report
-                  ? {
-                      source_hash: report.source_hash,
-                      test_revision: report.test_revision,
-                      limitations: report.limitations,
-                    }
-                  : { status: "No report" },
-                null,
-                2,
-              )}
-            </pre>
-          </details>
+          <span>
+            {a.job
+              ? `Revision ${a.job.id.slice(0, 8)} · ${a.connection}`
+              : "Source → structure → prediction → witness → repair → evidence"}
+          </span>
+          <span>
+            Built for scrutiny. <span className="gold">Yuktik / SAMYAK</span>
+          </span>
         </footer>
       </main>
+      <input
+        hidden
+        ref={upload}
+        type="file"
+        accept=".py,text/x-python"
+        aria-label="Python file"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            if (file.size > 60000) a.setError("Source limit is 60 KB");
+            else {
+              edit(await file.text());
+              a.setTests([]);
+              a.setFixture(null);
+            }
+          }
+          e.target.value = "";
+        }}
+      />
+      {dialog ? (
+        <div
+          className="modal-backdrop"
+          onClick={(e) => e.target === e.currentTarget && setDialog(null)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              dialog === "confirmation"
+                ? "Confirm exact behavior"
+                : dialog === "candidate"
+                  ? "Validate candidate"
+                  : "Authored test manifest"
+            }
+            className="panel modal"
+          >
+            <div className="flex-row justify-between">
+              <span className="label">
+                {dialog === "confirmation"
+                  ? "One exact expectation / new revision"
+                  : dialog === "candidate"
+                    ? "Independent candidate validation"
+                    : "Explicit test contract"}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Close dialog"
+                onClick={() => {
+                  setDialog(null);
+                  setTab("source");
+                }}
+              >
+                <X size={15} />
+              </Button>
+            </div>
+            {dialog === "confirmation" && confirmation ? (
+              <>
+                <h2>Confirm exact behavior</h2>
+                <p className="mono text-xs">
+                  {confirmation.function}({JSON.stringify(confirmation.args)})
+                </p>
+                <p className="muted text-xs">
+                  Observed: {observed(originals.get(confirmation.id))}. Your
+                  confirmation covers this tuple only.
+                </p>
+                <label htmlFor="expected-output" className="label block mt-5">
+                  Expected output / JSON
+                </label>
+                <input
+                  autoFocus
+                  className="w-full mono mt-2"
+                  id="expected-output"
+                  value={expected}
+                  onChange={(e) => setExpected(e.target.value)}
+                />
+                <div className="flex-row justify-end mt-5">
+                  <Button variant="ghost" onClick={() => setDialog(null)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    disabled={a.busy || !expected.trim()}
+                    onClick={submitConfirmation}
+                  >
+                    <Check size={13} />
+                    Confirm & rerun
+                  </Button>
+                </div>
+              </>
+            ) : dialog === "tests" ? (
+              <>
+                <h2>Authored tests, explicit expectations.</h2>
+                <p className="muted text-xs">
+                  Use JSON fields function, args, expected, has_expected: true,
+                  tier: &quot;A&quot;, domain: &quot;CONFIRMED&quot;. Values are
+                  validated by the API.
+                </p>
+                <textarea
+                  autoFocus
+                  aria-label="Authored tests JSON"
+                  rows={12}
+                  value={testDraft}
+                  onChange={(e) => setTestDraft(e.target.value)}
+                />
+                <Button
+                  onClick={() => {
+                    try {
+                      const parsed: unknown = JSON.parse(testDraft || "[]");
+                      if (!Array.isArray(parsed))
+                        throw new Error("Expected an array");
+                      a.setTests(parsed as TestCase[]);
+                      setDialog(null);
+                      setTab("source");
+                      a.setError("");
+                    } catch (e) {
+                      a.setError(String(e));
+                    }
+                  }}
+                >
+                  Apply test manifest
+                </Button>
+              </>
+            ) : (
+              <>
+                <h2>Test your own repair.</h2>
+                <p className="muted text-xs">
+                  The original stays immutable. The full recorded suite runs
+                  against the candidate.
+                </p>
+                <textarea
+                  aria-label="Candidate source"
+                  rows={15}
+                  value={customPatch}
+                  onChange={(e) => setCustomPatch(e.target.value)}
+                />
+                <Button
+                  disabled={a.busy || !customPatch.trim()}
+                  onClick={() => {
+                    setDialog(null);
+                    if (report)
+                      void a.run(
+                        `/v1/analyses/${report.job_id}/patches/validate`,
+                        { source: customPatch },
+                      );
+                  }}
+                >
+                  Validate candidate
+                </Button>
+              </>
+            )}
+          </section>
+        </div>
+      ) : null}
     </div>
   );
+}
+function Timeline({
+  events,
+}: {
+  events: { id: number; stage: string; message: string; timestamp: string }[];
+}) {
+  return (
+    <div className="timeline">
+      {events.map((e) => (
+        <div className="timeline-row" key={e.id}>
+          <time title={e.timestamp} dateTime={e.timestamp}>
+            {new Date(e.timestamp).toLocaleTimeString("en-GB", {
+              hour12: false,
+            })}
+          </time>
+          <i className="stage-dot" />
+          <div>
+            <span className="capitalize">{e.stage.replaceAll("_", " ")}</span>
+            <p>{e.message}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function ModelMetrics({ report }: { report: Report }) {
+  const metrics = report.model.metrics as
+    | {
+        test?: Record<
+          string,
+          { xgb?: { n: number; pr_auc: number; roc_auc: number; f1: number } }
+        >;
+        localization_ablation?: unknown;
+      }
+    | undefined;
+  return (
+    <>
+      <div className="table-scroll mt-4">
+        <table>
+          <thead>
+            <tr>
+              <th>Untouched cohort</th>
+              <th>n</th>
+              <th>PR-AUC</th>
+              <th>F1</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(metrics?.test || {}).map(([name, row]) => (
+              <tr key={name}>
+                <td>{name.replaceAll("_", " ")}</td>
+                <td>{row.xgb?.n ?? "—"}</td>
+                <td>{row.xgb?.pr_auc?.toFixed(3) ?? "—"}</td>
+                <td>{row.xgb?.f1?.toFixed(3) ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <details className="mt-4">
+        <summary>ML on / off localization ablation</summary>
+        <Json
+          value={metrics?.localization_ablation || { status: "UNAVAILABLE" }}
+        />
+      </details>
+    </>
+  );
+}
+
+function downloadBundle(path: string) {
+  const link = document.createElement("a");
+  link.href = path;
+  link.download = "samyak-evidence.zip";
+  link.click();
 }

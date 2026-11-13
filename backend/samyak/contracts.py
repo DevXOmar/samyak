@@ -2,7 +2,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 import json
 
-VERSION = "1.0"
+VERSION = "1.1"
 Domain = Literal["CONFIRMED", "UNCONFIRMED", "OUT_OF_CONTRACT"]
 Tier = Literal["A", "B", "I", "C"]
 
@@ -159,6 +159,7 @@ class Report(ContractModel):
     verdict: str = "INCONCLUSIVE_NO_OUTPUT_ORACLE"
     limitations: list[str] = Field(default_factory=list)
     outputs: dict[str, Any] = Field(default_factory=dict)
+    intelligence: dict[str, Any] = Field(default_factory=dict)
 
 
 class Job(ContractModel):

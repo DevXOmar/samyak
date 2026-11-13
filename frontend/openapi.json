@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "SAMYAK Evidence API",
-    "version": "1.0"
+    "version": "1.1"
   },
   "paths": {
     "/health": {
@@ -976,7 +976,7 @@
           "contract_version": {
             "type": "string",
             "title": "Contract Version",
-            "default": "1.0"
+            "default": "1.1"
           },
           "id": {
             "type": "string",
@@ -1068,7 +1068,7 @@
           "contract_version": {
             "type": "string",
             "title": "Contract Version",
-            "default": "1.0"
+            "default": "1.1"
           },
           "job_id": {
             "type": "string",
@@ -1214,6 +1214,11 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Outputs"
+          },
+          "intelligence": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Intelligence"
           }
         },
         "additionalProperties": false,
@@ -1241,7 +1246,8 @@
           "severity",
           "verdict",
           "limitations",
-          "outputs"
+          "outputs",
+          "intelligence"
         ],
         "title": "Report"
       },
