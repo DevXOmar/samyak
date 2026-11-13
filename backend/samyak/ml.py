@@ -131,3 +131,72 @@ def edit_priors(precedents, operators):
             frequencies[p["operator"]] += p["similarity"]
     total = sum(frequencies.values()) + 0.5 * len(operators)
     return {op: (0.5 + frequencies[op]) / total if total else 0 for op in operators}
+
+
+def index_identity(bundle):
+    return digest(
+        json.dumps(
+            [
+                {
+                    "id": p["id"],
+                    "buggy": digest(p["buggy"]),
+                    "fixed": digest(p["fixed"]),
+                    "operator": p["operator"],
+                }
+                for p in bundle["precedents"]
+            ],
+            sort_keys=True,
+        )
+    )
+
+
+def novelty_evidence(model, functions, source, precedents):
+    """Heuristic novelty from train-only reference features and independent model disagreement."""
+    if model.bundle is None or not functions:
+        return {
+            "status": "NOT_SUPPORTED",
+            "reason": "Trained model or supported functions unavailable",
+            "abstain": True,
+        }
+    bundle = model.bundle
+    training = np.array([values(p[k]) for p in bundle["precedents"] for k in ("buggy", "fixed")])
+    low, high = np.quantile(training, [0.05, 0.95], axis=0)
+    x = matrix(bundle["tfidf"], [f.source for f in functions])
+    rf = bundle["rf"].predict_proba(x)[:, 1]
+    xgb = bundle["risk"].predict_proba(x)[:, 1]
+    known_ast = {type(n).__name__ for p in bundle["precedents"] for n in ast.walk(ast.parse(p["buggy"]))}
+    unfamiliar_ast = sorted({type(n).__name__ for n in ast.walk(ast.parse(source))} - known_ast)
+    rows = []
+    for fn, baseline, operational in zip(functions, rf, xgb):
+        vector = np.array(values(fn.source))
+        outside = [FEATURES[i] for i in range(len(FEATURES)) if vector[i] < low[i] or vector[i] > high[i]]
+        rows.append(
+            {
+                "function": fn.name,
+                "rf_risk": float(baseline),
+                "xgb_risk": float(operational),
+                "disagreement": float(abs(baseline - operational)),
+                "outlier_features": outside,
+                "outlier_fraction": len(outside) / len(FEATURES),
+            }
+        )
+    similarity = max((p["similarity"] for p in precedents), default=0)
+    abstain = (
+        similarity < 0.15
+        or any(r["disagreement"] > 0.35 or r["outlier_fraction"] > 0.35 for r in rows)
+        or bool(unfamiliar_ast)
+    )
+    return {
+        "status": "UNFAMILIAR" if abstain else "HISTORICAL_NEIGHBORHOOD",
+        "abstain": abstain,
+        "basis": "HEURISTIC_NOT_CALIBRATED",
+        "nearest_similarity": similarity,
+        "functions": rows,
+        "unseen_ast_types": unfamiliar_ast,
+        "thresholds": {"similarity_min": 0.15, "disagreement_max": 0.35, "outlier_fraction_max": 0.35},
+        "feature_reference": "Train-only 5th/95th numeric AST percentiles",
+        "index_id": index_identity(bundle),
+        "reason": "Lower-trust ML/family conclusion; static and runtime checks continue"
+        if abstain
+        else "Historical familiarity is not a correctness oracle",
+    }

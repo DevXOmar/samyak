@@ -4,8 +4,8 @@ import subprocess
 import tempfile
 from .contracts import AnalysisRequest, Execution, Report
 from .inference import infer, shrink_fault
-from .ml import ModelService
-from .repair import candidates, llm_candidates, make_candidate, safety, validate
+from .ml import ModelService, novelty_evidence, index_identity, edit_priors
+from .repair import OPERATORS, candidates, llm_candidates, make_candidate, safety, validate
 from .runner import DockerRunner
 from .store import digest
 from .structure import analyze, localize
@@ -90,6 +90,20 @@ def run_pipeline(ident, payload, stage, parent=None):
     if similarity is not None and similarity < 0.15:
         for fn in report.functions:
             fn.family = "UNKNOWN_FAMILY"
+    report.intelligence["novelty"] = novelty_evidence(model, report.functions, source, report.precedents)
+    if report.intelligence["novelty"].get("abstain"):
+        for fn in report.functions:
+            fn.family = "UNKNOWN_FAMILY"
+    report.intelligence["precedents"] = {
+        "status": "AVAILABLE" if report.precedents else "NOT_SUPPORTED",
+        "reason": "Train-only cosine neighbors influence applicable template priors; not output oracles",
+        "index_id": index_identity(model.bundle) if model.bundle else None,
+        "operator_distribution": edit_priors(report.precedents, OPERATORS),
+        "comparison": {
+            "status": "NOT_RUN",
+            "reason": "Run the paired retrieval experiment to execute both candidate orders",
+        },
+    }
     report.overall_risk = max((f.risk for f in report.functions if f.risk is not None), default=None)
     stage(
         "inference",
@@ -177,6 +191,9 @@ def run_pipeline(ident, payload, stage, parent=None):
     )
     llm, llm_status = llm_candidates(source, context, report.findings, report.tests, report.precedents)
     report.model["llm_status"] = llm_status
+    report.intelligence["precedents"]["ranking"] = [
+        {"candidate_id": c.id, "operator": c.operator, "prior": c.prior} for c in generated
+    ]
     report.candidates = list({c.id: c for c in [*generated, *llm]}.values())[:8]
     if payload.get("patch_source"):
         custom = make_candidate(source, payload["patch_source"], "USER_CANDIDATE", 1, 0, context)
