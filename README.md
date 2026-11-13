@@ -1,6 +1,6 @@
-# SAMYAK · Phase 1
+# SAMYAK · Phase 2
 
-An evidence-driven Python defect investigation and repair workbench for Yuktik. The local `ProblemStatement/Samyak_Technical_Blueprint.md` (revision 2.0) and `Hackthon.docx` define the scope. This repository contains a working bounded pipeline, independently trained models, source data/provenance and three executable source fixtures. Passing recorded tests is not a proof of universal correctness.
+An evidence-driven Python defect investigation and repair workbench for Yuktik. The local `ProblemStatement/Samyak_Technical_Blueprint.md` (revision 2.0) and `Hackthon.docx` define the scope. This repository preserves the Phase 1 pipeline, independently trained models and source data, and adds five connected investigation workspaces, four live source fixtures and ten bounded evidence-bearing USPs. Passing recorded tests is not a proof of universal correctness.
 
 ## Start
 
@@ -18,11 +18,13 @@ Open **http://127.0.0.1:3000**. API documentation: **http://127.0.0.1:8000/docs*
 `make train` retrains from the committed, witnessed source corpus. The checkout also includes trained RF/XGBoost artifacts, so it can analyze before retraining. Training never imports or executes corpus programs. If Docker or the fixed runner image is unavailable, jobs retain static/ML evidence and return **EXECUTION_UNAVAILABLE** for execution; there is no host-interpreter fallback.
 
 ```sh
-make demo       # With make dev running: real API jobs, assertions and ZIP bundles in var/
+make demo       # Phase 1 source fixtures, exact confirmation and ZIP evidence
+make demo-phase2 # Full live Phase 2 circuit: four sources + witness/retrieval/twin/ledger/Shield
 make test       # Backend unit/integration tests + frontend tests
 make lint       # Ruff checks/format, ESLint and TypeScript
 make build      # Production Next.js build
-make check      # lint + tests + build
+make check      # lint + backend/frontend unit/integration tests + build
+make e2e        # Real Playwright workflows; starts the existing dev stack if needed
 make types      # FastAPI OpenAPI → generated frontend TS types
 make reproduce  # source acquisition → runner build → sandbox witnesses → training
 ```
@@ -94,5 +96,21 @@ PYTHONPATH=backend .venv/bin/python scripts/replay.py /path/to/extracted-bundle
 Replay requires the exact recorded Docker image ID. It verifies artifact hashes and compares statuses, outputs and exception signatures; timing equality is intentionally not required.
 
 Copy `.env.example` to `.env` to configure paths or the optional OpenAI-compatible `SAMYAK_LLM_BASE_URL`, `SAMYAK_LLM_MODEL`, `SAMYAK_LLM_API_KEY`. `make dev` loads it without shell evaluation. With all three LLM values configured, source, local context, tests, witnessed failures and short train-only precedents are sent to that endpoint; an LLM response is always an untrusted candidate. The default requires no key.
+
+## Phase 2 workspaces and experiments
+
+The warm light/dark Workbench uses local Geist fonts, custom Monaco themes, diagnostics/heat gutters, fullscreen, resizing, search/folding/minimap, Cmd/Ctrl+Enter and source/test revision invalidation. Fault Atlas offers bounded AST/call/CFG/def-use views, source peek and impacted callers. Contract Studio exposes real witnesses, exact confirmations/rejections and justified property checks. Repair Arena shows side-by-side diffs, elimination gates, policy and actual retrieval ablation. Model Lab & Vault shows measured binary/family/localization metrics, heuristic novelty, immutable identities and verified replay.
+
+Experiment actions use the **same SQLite queue/worker/SSE**: `POST /v1/analyses/{id}/investigate` with `action` = `witness`, `replay`, `precedents`, `ledger`, `twin` or `metamorphic`. Exact rejections use `/contracts/decision`; sorting contracts use `/contracts/property`. `GET /v1/capabilities` reads real worker/model/runner readiness; `/timeline` exposes persisted events. All create inspectable evidence and retain uncertainty. Optional LLM configuration remains disabled by default.
+
+```sh
+cd frontend
+npx playwright install chromium  # Once, for browser E2E
+npm run test:e2e
+```
+
+Browser tests execute real backend jobs rather than mocked verdicts, including confirmation, regressions, abstention, graph/diff navigation, SSE recovery, witness/retrieval/twin/ledger actions, metamorphic properties and 390/1440/1920px light/dark layouts. Run Docker first; execution failures are intentionally not disguised as skipped live-demo success.
+
+See [USP evidence inventory](docs/USP_EVIDENCE.md) and [seven-minute judge walkthrough](docs/JUDGE_DEMO.md). No new model accuracy, ML localization uplift, external QuixBugs evaluation or production sandbox security is claimed. Property/twin eligibility is intentionally bounded and unsupported paths are explicit.
 
 See [Phase 1 handoff](docs/PHASE1_HANDOFF.md), [requirement traceability](docs/TRACEABILITY.md) and [model card](data/models/MODEL_CARD.md).
