@@ -3,7 +3,7 @@
 import ast
 
 
-def syntax_tree(source, limit=200):
+def syntax_tree(source, limit=2000):
     tree = ast.parse(source)
     nodes, edges = [], []
 
@@ -33,4 +33,14 @@ def syntax_tree(source, limit=200):
                     visit(child, ident, name, depth + 1)
 
     visit(tree)
-    return {"nodes": nodes, "edges": edges, "limit": limit, "truncated": len(list(ast.walk(tree))) > limit}
+    total = sum(
+        not isinstance(n, (ast.expr_context, ast.operator, ast.cmpop, ast.boolop, ast.unaryop))
+        for n in ast.walk(tree)
+    )
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "limit": limit,
+        "truncated": total > len(nodes),
+        "omitted_nodes": total - len(nodes),
+    }

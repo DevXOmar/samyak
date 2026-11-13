@@ -1194,3 +1194,80 @@ td code {
     flex-wrap: wrap;
   }
 }
+.atlas-controls {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.atlas-controls select,
+[aria-label="Impact candidate"] {
+  max-width: 100%;
+}
+.source-peek {
+  height: 390px;
+  resize: vertical;
+  min-height: 290px;
+  overflow: hidden;
+}
+.inspector-expanded {
+  position: fixed;
+  inset: 60px 30px 30px;
+  height: auto;
+  z-index: 65;
+  background: var(--surface);
+  box-shadow: 0 0 0 40px var(--bg);
+}
+.rank-list {
+  max-height: 400px;
+  overflow: auto;
+  margin: 15px 0;
+}
+.rank-list button {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  width: 100%;
+  gap: 6px;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.rank-list button[aria-pressed="true"] {
+  background: var(--soft);
+  border-left: 2px solid var(--gold);
+}
+.rank-list span,
+.rank-list small {
+  grid-column: 1/-1;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+}
+.impact-test {
+  margin: 10px 0;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+[aria-label="Why this line?"] {
+  overflow-x: auto;
+}
+@media (max-width: 600px) {
+  .inspector-expanded {
+    inset: 60px 8px 8px;
+  }
+  .atlas-controls select {
+    width: 100%;
+  }
+}
+.atlas-node-label {
+  display: block;
+  max-width: 195px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inspector-close {
+  position: fixed;
+  right: 30px;
+  top: 20px;
+  z-index: 70;
+  background: var(--surface);
+}

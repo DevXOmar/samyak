@@ -40,6 +40,8 @@ import {
   type TestCase,
   type AnalysisRequest,
 } from "@/lib/client";
+const RankedSpans = dynamic(() => import("@/components/ranked-spans"));
+const ImpactExplorer = dynamic(() => import("@/components/impact-explorer"));
 const ModelMetrics = dynamic(() => import("@/components/model-metrics"));
 const Experiment = dynamic(() => import("@/components/intelligence-panel"));
 const CodeEditor = dynamic(() => import("@/components/code-editor"), {
@@ -99,6 +101,7 @@ export default function Workbench() {
   const [revealToken, setRevealToken] = useState(0);
   const [cursorLine, setCursorLine] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
+  const [expandedSource, setExpandedSource] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [tab, setTab] = useState("source");
   const [suggestion, setSuggestion] = useState<string | null>(null);
@@ -120,6 +123,7 @@ export default function Workbench() {
       if (event.key === "Escape") {
         setDialog(null);
         setFullscreen(false);
+        setExpandedSource(false);
       }
     };
     window.addEventListener("keydown", close);
@@ -923,12 +927,45 @@ export default function Workbench() {
                       <span className="label">Source inspection</span>
                       <code className="text-[9px] gold">L{line || 1}</code>
                     </div>
-                    <div className="source-peek mt-3">
+                    <p className="intro-copy">
+                      {report.functions.find(
+                        (f) =>
+                          f.span.start_line <= (line || 1) &&
+                          (line || 1) <= f.span.end_line,
+                      )?.name || "module"}{" "}
+                      ·{" "}
+                      {report.findings.find((f) => f.span.start_line === line)
+                        ?.rule_id || "Selected source context"}
+                    </p>
+                    <button
+                      className="chip"
+                      onClick={() => setExpandedSource(!expandedSource)}
+                    >
+                      {expandedSource ? "Collapse source" : "Expand source"}
+                    </button>{" "}
+                    <button
+                      className="chip"
+                      onClick={() => chooseFinding(line || 1)}
+                    >
+                      Open in Workbench
+                    </button>
+                    <div
+                      className={`source-peek mt-3 ${expandedSource ? "inspector-expanded" : ""}`}
+                    >
+                      {expandedSource ? (
+                        <button
+                          className="inspector-close chip"
+                          onClick={() => setExpandedSource(false)}
+                        >
+                          Close expanded source (Esc)
+                        </button>
+                      ) : null}
                       <CodeEditor
                         value={report.source}
                         onChange={() => {}}
                         findings={report.findings}
-                        line={line}
+                        line={line || Number(report.localization[0]?.line) || 1}
+                        revealToken={revealToken}
                         theme={theme}
                         height="100%"
                         readOnly
@@ -936,24 +973,6 @@ export default function Workbench() {
                         onSelect={chooseLine}
                       />
                     </div>
-                    <p className="label mt-5">Ranked source spans</p>
-                    {report.localization.slice(0, 6).map((r, i) => (
-                      <button
-                        key={`${r.function}-${r.line}`}
-                        className="metric-inline w-full text-left"
-                        onClick={() => chooseFinding(Number(r.line))}
-                      >
-                        <span>
-                          <span className="muted mr-2">{i + 1}.</span>
-                          <code>
-                            {String(r.function)}:{String(r.line)}
-                          </code>
-                        </span>
-                        <code className="gold">
-                          {Number(r.score).toFixed(3)}
-                        </code>
-                      </button>
-                    ))}
                   </section>
                 </div>
                 <div className="bottom-evidence">
@@ -976,18 +995,17 @@ export default function Workbench() {
                       </div>
                     ))}
                   </section>
-                  <section className="panel panel-body">
-                    <h2 className="mb-4">Selected contributions</h2>
-                    <Json value={ranked || report.localization[0]} />
-                  </section>
+                  <RankedSpans
+                    report={report}
+                    line={line}
+                    onSelect={chooseLine}
+                  />{" "}
                 </div>
-                <Experiment
+                <ImpactExplorer
                   report={report}
-                  onSource={chooseFinding}
-                  title="Blast radius"
-                  data={details.blast_radius}
-                  busy={a.busy}
-                  run={investigate}
+                  index={selectedIndex}
+                  onCandidate={setSelected}
+                  onSource={chooseLine}
                 />
               </>
             ) : null}
@@ -1406,6 +1424,12 @@ export default function Workbench() {
                     copy="The analyzer found no applicable template. This remains an unresolved investigation; a user candidate can still be validated."
                   />
                 )}
+                <ImpactExplorer
+                  report={report}
+                  index={selectedIndex}
+                  onCandidate={setSelected}
+                  onSource={chooseFinding}
+                />
                 <Experiment
                   report={report}
                   onSource={chooseFinding}
