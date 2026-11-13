@@ -15,6 +15,9 @@ export default function CodeEditor({
   height = "100%",
   onAnalyze,
   onSelect,
+  readOnly = false,
+  modelPath = "submission.py",
+  revealToken = 0,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -24,9 +27,13 @@ export default function CodeEditor({
   height?: string;
   onAnalyze?: () => void;
   onSelect?: (line: number) => void;
+  readOnly?: boolean;
+  modelPath?: string;
+  revealToken?: number;
 }) {
   const instance = useRef<editor.IStandaloneCodeEditor | null>(null);
   const monaco = useRef<Parameters<OnMount>[1] | null>(null);
+  const lastRevealed = useRef<string>("");
   const decorations = useRef<editor.IEditorDecorationsCollection | null>(null);
   const disposables = useRef<IDisposable[]>([]);
   const handlers = useRef({ onAnalyze, onSelect });
@@ -65,7 +72,8 @@ export default function CodeEditor({
         },
       })),
     );
-    if (line) {
+    if (line && lastRevealed.current !== `${line}:${revealToken}`) {
+      lastRevealed.current = `${line}:${revealToken}`;
       const finding = findings.find((f) => f.span.start_line === line);
       const selected = finding?.span;
       instance.current?.revealLineInCenter(line);
@@ -80,7 +88,7 @@ export default function CodeEditor({
         ),
       );
     }
-  }, [findings, line, value]);
+  }, [findings, line, value, revealToken]);
   useEffect(mark, [mark]);
   useEffect(() => {
     monaco.current?.editor.setTheme(`samyak-${theme}`);
@@ -89,8 +97,9 @@ export default function CodeEditor({
   return (
     <Editor
       height={height}
+      keepCurrentModel
       language="python"
-      path="submission.py"
+      path={modelPath}
       theme={`samyak-${theme}`}
       value={value}
       onChange={(v) => onChange(v || "")}
@@ -118,7 +127,9 @@ export default function CodeEditor({
         );
       }}
       options={{
-        minimap: { enabled: true, maxColumn: 80, renderCharacters: false },
+        accessibilitySupport: "auto",
+        readOnly,
+        minimap: { enabled: !readOnly, maxColumn: 80, renderCharacters: false },
         glyphMargin: true,
         folding: true,
         showFoldingControls: "mouseover",

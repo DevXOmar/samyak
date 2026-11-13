@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Capabilities */
+        get: operations["capabilities_v1_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/fixtures/{name}": {
         parameters: {
             query?: never;
@@ -98,6 +115,23 @@ export interface paths {
         };
         /** Events */
         get: operations["events_v1_analyses__ident__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analyses/{ident}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Timeline */
+        get: operations["timeline_v1_analyses__ident__timeline_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -327,6 +361,32 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** Capabilities */
+        Capabilities: {
+            /**
+             * Contract Version
+             * @default 1.1
+             */
+            contract_version: string;
+            /** Runner */
+            runner: {
+                [key: string]: unknown;
+            };
+            /**
+             * Worker
+             * @enum {string}
+             */
+            worker: "READY" | "OFFLINE";
+            /** Model Status */
+            model_status: string;
+            /** Model Id */
+            model_id: string | null;
+            /**
+             * Llm
+             * @enum {string}
+             */
+            llm: "CONFIGURED" | "DISABLED_NO_CONFIGURATION";
+        };
         /** Confirmation */
         Confirmation: {
             /** Function */
@@ -363,6 +423,19 @@ export interface components {
             test_ids: string[];
             /** Reviewer */
             reviewer: string;
+        };
+        /** Event */
+        Event: {
+            /** Id */
+            id: number;
+            /** Job Id */
+            job_id: string;
+            /** Stage */
+            stage: string;
+            /** Message */
+            message: string;
+            /** Timestamp */
+            timestamp: string;
         };
         /** Execution */
         Execution: {
@@ -705,19 +778,6 @@ export interface components {
             /** Error Type */
             type: string;
         };
-        /** Event */
-        Event: {
-            /** Id */
-            id: number;
-            /** Job Id */
-            job_id: string;
-            /** Stage */
-            stage: string;
-            /** Message */
-            message: string;
-            /** Timestamp */
-            timestamp: string;
-        };
     };
     responses: never;
     parameters: never;
@@ -743,6 +803,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    capabilities_v1_capabilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Capabilities"];
                 };
             };
         };
@@ -894,6 +974,37 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                     "text/event-stream": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    timeline_v1_analyses__ident__timeline_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ident: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Event"][];
                 };
             };
             /** @description Validation Error */

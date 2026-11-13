@@ -12,6 +12,14 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{document.documentElement.dataset.theme=localStorage.getItem('samyak-theme')==='dark'?'dark':'light'}catch{}",
+          }}
+        />
+      </head>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable}`}
         style={

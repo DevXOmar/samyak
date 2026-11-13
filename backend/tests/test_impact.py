@@ -75,3 +75,39 @@ def test_runtime_only_repair_requires_review():
     )
     enrich_tournament(r)
     assert r.intelligence["risk_budget"]["candidates"]["ok"]["band"] == "REVIEW_REQUIRED"
+
+
+def test_small_familiar_authoritative_repair_can_be_suggested_without_application():
+    source = "def f(x):\n    return x\n"
+    graph, functions, findings = analyze(source)
+    test = Case(
+        id="exact", function="f", args=[0], tier="A", domain="CONFIRMED", has_expected=True, expected=0
+    )
+    candidate = Candidate(
+        id="accepted",
+        source_hash="x",
+        source=source,
+        diff="",
+        operator="GUARD",
+        line=2,
+        prior=0,
+        context={},
+        changed_lines=2,
+        verdict="VALIDATED_ON_TESTS",
+        results=[Execution(test_id="exact", status="PASS")],
+    )
+    report = Report(
+        job_id="j",
+        source_hash="x",
+        source=source,
+        test_revision="t",
+        structure=graph,
+        functions=functions,
+        tests=[test],
+        original_results=[Execution(test_id="exact", status="FAIL")],
+        candidates=[candidate],
+        intelligence={"novelty": {"abstain": False}},
+    )
+    enrich_tournament(report)
+    policy = report.intelligence["risk_budget"]["candidates"]["accepted"]
+    assert policy["band"] == "AUTO_SUGGEST" and policy["automatic_application"] is False

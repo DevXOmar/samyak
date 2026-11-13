@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/hooks/use-theme";
+import { useCapabilities } from "@/hooks/use-capabilities";
 import { useAnalysis } from "@/hooks/use-analysis";
 import {
   observed,
@@ -38,6 +39,7 @@ import {
   type TestCase,
   type AnalysisRequest,
 } from "@/lib/client";
+const ModelMetrics = dynamic(() => import("@/components/model-metrics"));
 const Experiment = dynamic(() => import("@/components/intelligence-panel"));
 const CodeEditor = dynamic(() => import("@/components/code-editor"), {
   ssr: false,
@@ -85,10 +87,13 @@ function Empty({
 
 export default function Workbench() {
   const a = useAnalysis();
+  const capabilities = useCapabilities();
   const report = a.visibleReport;
   const [workspace, setWorkspace] = useState<Workspace>("Workbench");
   const [theme, setTheme] = useTheme();
   const [line, setLine] = useState<number | null>(null);
+  const [revealToken, setRevealToken] = useState(0);
+  const [cursorLine, setCursorLine] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [tab, setTab] = useState("source");
@@ -100,10 +105,10 @@ export default function Workbench() {
   const [expected, setExpected] = useState("");
   const [customPatch, setCustomPatch] = useState("");
   const upload = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLElement>(null);
   const editorTop = useRef<HTMLDivElement>(null);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem("samyak-theme", theme);
   }, [theme]);
   useEffect(() => {
     const close = (event: KeyboardEvent) => {
@@ -115,11 +120,48 @@ export default function Workbench() {
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, []);
+  useEffect(() => {
+    if (!dialog) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const root = modalRef.current;
+    const focusable = () =>
+      root
+        ? Array.from(
+            root.querySelectorAll<HTMLElement>(
+              "button:not(:disabled),input,textarea,select,a[href]",
+            ),
+          )
+        : [];
+    focusable()
+      .find((e) => e.tagName === "INPUT" || e.tagName === "TEXTAREA")
+      ?.focus();
+    function trap(event: KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      const first = items[0],
+        last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+    document.addEventListener("keydown", trap);
+    return () => {
+      document.removeEventListener("keydown", trap);
+      previous?.focus();
+    };
+  }, [dialog]);
   const chooseLine = useCallback((at: number) => {
     setLine(at);
+    setCursorLine(at);
   }, []);
   const chooseFinding = (at: number) => {
+    setRevealToken((v) => v + 1);
     setLine(at);
+    setCursorLine(at);
     setWorkspace("Workbench");
     editorTop.current?.scrollIntoView({
       block: "nearest",
@@ -130,12 +172,13 @@ export default function Workbench() {
     a.setSource(value);
     setLine(null);
   };
+  const selectedIndex = report?.candidates[selected] ? selected : 0;
   const candidate = report?.candidates[selected] || report?.candidates[0];
   const finding =
-    report?.findings.find((f) => f.span.start_line === line) ||
+    report?.findings.find((f) => f.span.start_line === (cursorLine || line)) ||
     report?.findings[0];
   const ranked = report?.localization.find(
-    (r) => r.line === (line || finding?.span.start_line),
+    (r) => r.line === (cursorLine || line || finding?.span.start_line),
   );
   const originals = new Map(
     report?.original_results.map((r) => [r.test_id, r]),
@@ -301,6 +344,36 @@ export default function Workbench() {
             )}
           </div>
         </div>
+        {capabilities.offline ? (
+          <div className="notice error" role="status">
+            API is offline. Start the local services, then retry.
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void capabilities.check()}
+            >
+              Check connection
+            </Button>
+          </div>
+        ) : capabilities.status &&
+          (capabilities.status.worker === "OFFLINE" ||
+            capabilities.status.runner.status !== "AVAILABLE") ? (
+          <div className="notice" role="status">
+            {capabilities.status.worker === "OFFLINE"
+              ? "Background worker is offline; submissions remain queued. "
+              : ""}
+            {capabilities.status.runner.status !== "AVAILABLE"
+              ? "Docker execution is unavailable. Static analysis remains usable; execution fails closed. "
+              : ""}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void capabilities.check()}
+            >
+              Recheck availability
+            </Button>
+          </div>
+        ) : null}
         {a.error ? (
           <div className="notice error" role="alert">
             <div className="flex-row">
@@ -454,6 +527,7 @@ export default function Workbench() {
                 </div>
                 <div className="editor-body">
                   <CodeEditor
+                    revealToken={revealToken}
                     height="100%"
                     value={a.source}
                     onChange={edit}
@@ -461,7 +535,7 @@ export default function Workbench() {
                     line={line}
                     theme={theme}
                     onAnalyze={() => !a.busy && a.source.trim() && void a.run()}
-                    onSelect={chooseLine}
+                    onSelect={setCursorLine}
                   />
                 </div>
                 <div className="editor-footer">
@@ -693,8 +767,25 @@ export default function Workbench() {
                     dark={theme === "dark"}
                   />
                   <section className="panel rail-section">
-                    <span className="label">Ranked source spans</span>
-                    {report.localization.slice(0, 14).map((r, i) => (
+                    <div className="flex-row justify-between">
+                      <span className="label">Source inspection</span>
+                      <code className="text-[9px] gold">L{line || 1}</code>
+                    </div>
+                    <div className="source-peek mt-3">
+                      <CodeEditor
+                        value={report.source}
+                        onChange={() => {}}
+                        findings={report.findings}
+                        line={line}
+                        theme={theme}
+                        height="100%"
+                        readOnly
+                        modelPath="atlas-inspection.py"
+                        onSelect={chooseLine}
+                      />
+                    </div>
+                    <p className="label mt-5">Ranked source spans</p>
+                    {report.localization.slice(0, 6).map((r, i) => (
                       <button
                         key={`${r.function}-${r.line}`}
                         className="metric-inline w-full text-left"
@@ -999,6 +1090,17 @@ export default function Workbench() {
                     Validate your own candidate
                   </Button>
                 </div>
+                <div className="flex-row mb-4">
+                  <Badge>
+                    {report.model.llm_status === "DISABLED_NO_CONFIGURATION"
+                      ? "LOCAL TEMPLATES / NO LLM KEY"
+                      : String(report.model.llm_status || "LLM NOT RUN")}
+                  </Badge>
+                  <span className="text-[10px] muted">
+                    Deterministic repair remains available without an external
+                    provider.
+                  </span>
+                </div>
                 <div className="candidate-strip">
                   {report.candidates.map((c, i) => (
                     <button
@@ -1026,7 +1128,7 @@ export default function Workbench() {
                       <div className="panel editor-shell">
                         <div className="panel-heading">
                           <span className="label">
-                            Original → candidate {selected + 1}
+                            Original → candidate {selectedIndex + 1}
                           </span>
                           <code className="text-[9px] muted">
                             {candidate.id.slice(0, 12)}
@@ -1188,7 +1290,9 @@ export default function Workbench() {
                   <section className="panel panel-body">
                     <div className="flex-row justify-between">
                       <h2>Model Lab</h2>
-                      <Badge>{String(report.model.status)}</Badge>
+                      <Badge>
+                        {String(report.model.status || "MODEL_UNAVAILABLE")}
+                      </Badge>
                     </div>
                     <p className="intro-copy">
                       Small held-out cohorts. No measured ML localization
@@ -1197,7 +1301,7 @@ export default function Workbench() {
                     <div className="metric-inline mt-4">
                       <span>Calibration</span>
                       <span className="text-[9px]">
-                        {String(report.model.calibration)}
+                        {String(report.model.calibration || "UNAVAILABLE")}
                       </span>
                     </div>
                     <p className="hash mt-3">
@@ -1379,6 +1483,7 @@ export default function Workbench() {
           onClick={(e) => e.target === e.currentTarget && setDialog(null)}
         >
           <section
+            ref={modalRef}
             role="dialog"
             aria-modal="true"
             aria-label={
@@ -1534,50 +1639,6 @@ function Timeline({
     </div>
   );
 }
-function ModelMetrics({ report }: { report: Report }) {
-  const metrics = report.model.metrics as
-    | {
-        test?: Record<
-          string,
-          { xgb?: { n: number; pr_auc: number; roc_auc: number; f1: number } }
-        >;
-        localization_ablation?: unknown;
-      }
-    | undefined;
-  return (
-    <>
-      <div className="table-scroll mt-4">
-        <table>
-          <thead>
-            <tr>
-              <th>Untouched cohort</th>
-              <th>n</th>
-              <th>PR-AUC</th>
-              <th>F1</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(metrics?.test || {}).map(([name, row]) => (
-              <tr key={name}>
-                <td>{name.replaceAll("_", " ")}</td>
-                <td>{row.xgb?.n ?? "—"}</td>
-                <td>{row.xgb?.pr_auc?.toFixed(3) ?? "—"}</td>
-                <td>{row.xgb?.f1?.toFixed(3) ?? "—"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <details className="mt-4">
-        <summary>ML on / off localization ablation</summary>
-        <Json
-          value={metrics?.localization_ablation || { status: "UNAVAILABLE" }}
-        />
-      </details>
-    </>
-  );
-}
-
 function downloadBundle(path: string) {
   const link = document.createElement("a");
   link.href = path;

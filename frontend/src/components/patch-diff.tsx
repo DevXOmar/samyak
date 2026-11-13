@@ -1,4 +1,5 @@
 "use client";
+import { useId } from "react";
 import { DiffEditor, loader } from "@monaco-editor/react";
 import { editorThemes } from "@/lib/editor-themes";
 loader.config({ paths: { vs: "/monaco/vs" } });
@@ -11,10 +12,24 @@ export default function PatchDiff({
   modified: string;
   theme: "light" | "dark";
 }) {
+  const id = useId().replaceAll(":", "");
   return (
     <DiffEditor
       height="100%"
       language="python"
+      originalModelPath={`inmemory://samyak-diff/${id}/original.py`}
+      modifiedModelPath={`inmemory://samyak-diff/${id}/candidate.py`}
+      keepCurrentOriginalModel
+      keepCurrentModifiedModel
+      onMount={(editor) => {
+        const models = editor.getModel();
+        editor.onDidDispose(() => {
+          queueMicrotask(() => {
+            models?.original.dispose();
+            models?.modified.dispose();
+          });
+        });
+      }}
       original={original}
       modified={modified}
       theme={`samyak-${theme}`}

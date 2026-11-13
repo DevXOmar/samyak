@@ -21,10 +21,11 @@ export default function FaultAtlas({
   dark: boolean;
 }) {
   const [mode, setMode] = useState("calls");
+  const [scope, setScope] = useState("");
   const { nodes, edges } = useMemo(() => {
-    const graph = (
-      mode === "ast" ? report.structure.syntax_tree : report.structure.graph
-    ) as {
+    const graph = ((mode === "ast"
+      ? report.structure.syntax_tree
+      : report.structure.graph) || { nodes: [], edges: [] }) as {
       nodes: {
         id: string;
         kind: string;
@@ -33,6 +34,7 @@ export default function FaultAtlas({
         resolved?: boolean;
         start_line?: number;
         ast_type?: string;
+        depth?: number;
       }[];
       edges: {
         source: string;
@@ -42,11 +44,32 @@ export default function FaultAtlas({
         variable?: string;
       }[];
     };
+    const selectedFunction = report.functions.find((f) => f.name === scope);
+    const columns: Record<number, number> = {};
+    const affected = new Set(
+      Object.values(
+        (
+          report.intelligence.blast_radius as
+            | { candidates?: Record<string, { affected_functions: string[] }> }
+            | undefined
+        )?.candidates || {},
+      ).flatMap((c) => c.affected_functions),
+    );
     const filtered = graph.nodes
+      .filter(
+        (n) =>
+          !selectedFunction ||
+          mode === "calls" ||
+          (n.start_line != null &&
+            n.start_line >= selectedFunction.span.start_line &&
+            n.start_line <= selectedFunction.span.end_line),
+      )
       .filter((n) =>
         mode === "calls"
           ? ["Function", "Call"].includes(n.kind)
-          : n.kind === "Statement",
+          : mode === "ast"
+            ? true
+            : n.kind === "Statement",
       )
       .slice(0, 65);
     const ids = new Set(filtered.map((n) => n.id));
@@ -54,8 +77,21 @@ export default function FaultAtlas({
       id: n.id,
       position: {
         x:
-          mode === "calls" ? (n.kind === "Function" ? 30 : 320) : (i % 3) * 235,
-        y: mode === "calls" ? i * 90 : Math.floor(i / 3) * 100,
+          mode === "calls"
+            ? n.kind === "Function"
+              ? 30
+              : 320
+            : mode === "ast"
+              ? (n.depth || 0) * 205
+              : (i % 3) * 235,
+        y:
+          mode === "calls"
+            ? i * 90
+            : mode === "ast"
+              ? ((columns[n.depth || 0] = (columns[n.depth || 0] || 0) + 1) -
+                  1) *
+                85
+              : Math.floor(i / 3) * 100,
       },
       data: {
         label: `${n.name || n.target || n.ast_type} ${n.start_line ? `: ${n.start_line}` : ""}${n.resolved === false ? " · unresolved" : ""}`,
@@ -65,6 +101,7 @@ export default function FaultAtlas({
       style: {
         width: 195,
         borderStyle: n.resolved === false ? "dashed" : "solid",
+        borderColor: n.name && affected.has(n.name) ? "var(--gold)" : undefined,
       },
     }));
     const edges: Edge[] = graph.edges
@@ -74,11 +111,13 @@ export default function FaultAtlas({
           ids.has(e.target) &&
           (mode === "calls"
             ? e.kind === "CALLS"
-            : mode === "defuse"
-              ? e.kind === "DEF_USE"
-              : ["CONTROL_NEXT", "TRUE_BRANCH", "FALSE_BRANCH"].includes(
-                  e.kind,
-                )),
+            : mode === "ast"
+              ? true
+              : mode === "defuse"
+                ? e.kind === "DEF_USE"
+                : ["CONTROL_NEXT", "TRUE_BRANCH", "FALSE_BRANCH"].includes(
+                    e.kind,
+                  )),
       )
       .slice(0, 120)
       .map((e, i) => ({
@@ -91,7 +130,7 @@ export default function FaultAtlas({
         labelBgStyle: { fill: "var(--surface)" },
       }));
     return { nodes, edges };
-  }, [report, mode, line]);
+  }, [report, mode, line, scope]);
   return (
     <div className="panel">
       <div className="panel-heading">
@@ -101,16 +140,32 @@ export default function FaultAtlas({
             Select a node to inspect its source. Dashed edges remain unresolved.
           </p>
         </div>
-        <select
-          aria-label="Graph view"
-          value={mode}
-          onChange={(e) => setMode(e.target.value)}
-        >
-          <option value="calls">Call graph</option>
-          <option value="ast">Python AST</option>
-          <option value="defuse">Def-use</option>
-          <option value="cfg">Control flow</option>
-        </select>
+        <div className="flex-row">
+          {mode === "ast" ? (
+            <select
+              aria-label="Graph function"
+              value={scope}
+              onChange={(e) => setScope(e.target.value)}
+            >
+              <option value="">All functions</option>
+              {report.functions.map((f) => (
+                <option key={f.name} value={f.name}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <select
+            aria-label="Graph view"
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+          >
+            <option value="calls">Call graph</option>
+            <option value="ast">Python AST</option>
+            <option value="defuse">Def-use</option>
+            <option value="cfg">Control flow</option>
+          </select>
+        </div>
       </div>
       <div className="graph-canvas">
         <ReactFlow

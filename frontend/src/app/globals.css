@@ -996,3 +996,30 @@ td code {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+@media (max-width: 700px) {
+  .editor-tabs > .flex-row {
+    gap: 0;
+    flex-wrap: nowrap;
+  }
+  .editor-tabs > .flex-row button {
+    width: 30px;
+    height: 34px;
+  }
+  .file-tab {
+    padding: 12px 10px;
+    font-size: 10px;
+  }
+  .editor-tabs {
+    padding-right: 4px;
+  }
+  .experiment header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+}
+.source-peek {
+  height: 265px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse, Response
@@ -16,6 +17,7 @@ from .contracts import (
     InvestigationRequest,
     ContractDecision,
     PropertyConfirmation,
+    Capabilities,
 )
 from .fixtures import fixture
 from .ledger import build_bundle
@@ -47,6 +49,35 @@ def get_report(ident):
 @app.get("/health")
 def health():
     return {"status": "ok", "contract_version": VERSION}
+
+
+@app.get("/v1/capabilities", response_model=Capabilities)
+def capabilities():
+    from .runner import DockerRunner
+    from .ml import ModelService
+    import fcntl
+
+    runner = DockerRunner()
+    runner.available()
+    model = ModelService()
+    ready = False
+    lock_path = store().root / "worker.lock"
+    if lock_path.exists():
+        with lock_path.open("r") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                fcntl.flock(lock, fcntl.LOCK_UN)
+            except BlockingIOError:
+                ready = True
+    return Capabilities(
+        runner=runner.manifest,
+        worker="READY" if ready else "OFFLINE",
+        model_status=model.meta["status"],
+        model_id=model.meta.get("model_id"),
+        llm="CONFIGURED"
+        if all(os.getenv(k) for k in ["SAMYAK_LLM_BASE_URL", "SAMYAK_LLM_MODEL", "SAMYAK_LLM_API_KEY"])
+        else "DISABLED_NO_CONFIGURATION",
+    )
 
 
 @app.get("/v1/fixtures/{name}", response_model=AnalysisRequest)
@@ -101,6 +132,12 @@ async def events(ident: str, request: Request, after: int = 0):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.get("/v1/analyses/{ident}/timeline", response_model=list[Event])
+def timeline(ident: str):
+    get_job(ident)
+    return store().events(ident)
 
 
 @app.post("/v1/analyses/{ident}/tests", response_model=Job, status_code=202)

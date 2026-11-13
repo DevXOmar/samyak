@@ -21,6 +21,24 @@
         }
       }
     },
+    "/v1/capabilities": {
+      "get": {
+        "summary": "Capabilities",
+        "operationId": "capabilities_v1_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/fixtures/{name}": {
       "get": {
         "summary": "Get Fixture",
@@ -211,6 +229,49 @@
               "text/event-stream": {
                 "schema": {
                   "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/timeline": {
+      "get": {
+        "summary": "Timeline",
+        "operationId": "timeline_v1_analyses__ident__timeline_get",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Event"
+                  },
+                  "title": "Response Timeline V1 Analyses  Ident  Timeline Get"
                 }
               }
             }
@@ -823,6 +884,62 @@
         ],
         "title": "Candidate"
       },
+      "Capabilities": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "title": "Contract Version",
+            "default": "1.1"
+          },
+          "runner": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Runner"
+          },
+          "worker": {
+            "type": "string",
+            "enum": [
+              "READY",
+              "OFFLINE"
+            ],
+            "title": "Worker"
+          },
+          "model_status": {
+            "type": "string",
+            "title": "Model Status"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "llm": {
+            "type": "string",
+            "enum": [
+              "CONFIGURED",
+              "DISABLED_NO_CONFIGURATION"
+            ],
+            "title": "Llm"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "runner",
+          "worker",
+          "model_status",
+          "model_id",
+          "llm"
+        ],
+        "title": "Capabilities"
+      },
       "Confirmation": {
         "properties": {
           "function": {
@@ -914,6 +1031,40 @@
           "reviewer"
         ],
         "title": "DomainConfirmation"
+      },
+      "Event": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "job_id",
+          "stage",
+          "message",
+          "timestamp"
+        ],
+        "title": "Event",
+        "type": "object"
       },
       "Execution": {
         "properties": {
@@ -1845,40 +1996,6 @@
           "type"
         ],
         "title": "ValidationError"
-      },
-      "Event": {
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "job_id": {
-            "title": "Job Id",
-            "type": "string"
-          },
-          "stage": {
-            "title": "Stage",
-            "type": "string"
-          },
-          "message": {
-            "title": "Message",
-            "type": "string"
-          },
-          "timestamp": {
-            "title": "Timestamp",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "job_id",
-          "stage",
-          "message",
-          "timestamp"
-        ],
-        "title": "Event",
-        "type": "object"
       }
     }
   }

@@ -170,6 +170,11 @@ def run_pipeline(ident, payload, stage, parent=None):
         witness = shrink_fault(source, report.tests, report.original_results, runner)
         if witness:
             report.structure["minimal_witness"] = witness
+    report.intelligence["witness"] = {
+        "status": "NOT_RUN",
+        "reason": "Find the smallest supported, independently replayed failure. Exact semantic oracles are never transferred to new tuples.",
+        "initial_runtime_observation": report.structure.get("minimal_witness"),
+    }
     report.runner = runner.manifest
     stage("localization", "Fusing exposed model, rule, graph and eligible Ochiai signals")
     report.localization = localize(

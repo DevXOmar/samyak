@@ -198,3 +198,12 @@ class PropertyConfirmation(ContractModel):
     function: str = Field(pattern=r"^[A-Za-z_]\w*$", max_length=100)
     property: Literal["sorted_multiset"] = "sorted_multiset"
     reviewer: str = Field(min_length=1, max_length=100)
+
+
+class Capabilities(ContractModel):
+    contract_version: str = VERSION
+    runner: dict[str, Any]
+    worker: Literal["READY", "OFFLINE"]
+    model_status: str
+    model_id: str | None
+    llm: Literal["CONFIGURED", "DISABLED_NO_CONFIGURATION"]

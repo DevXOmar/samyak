@@ -115,3 +115,14 @@ def test_exact_domain_confirmation_validates_only_runtime_fault(client):
     assert not any(t["tier"] == "A" for t in result["tests"])
     accepted = next(t for t in result["tests"] if t["domain"] == "CONFIRMED")
     assert accepted["reviewer"] == "domain-reviewer" and accepted["confirmed_at"]
+
+
+def test_capabilities_and_persisted_timeline(client, monkeypatch):
+    monkeypatch.setattr(DockerRunner, "available", lambda _: False)
+    readiness = client.get("/v1/capabilities").json()
+    assert readiness["worker"] == "OFFLINE"
+    assert readiness["runner"]["status"] == "EXECUTION_UNAVAILABLE"
+    report = run(client, fixture("average"))
+    events = client.get(f"/v1/analyses/{report['job_id']}/timeline").json()
+    assert events and all(e["timestamp"] and e["job_id"] == report["job_id"] for e in events)
+    assert events[-1]["stage"] == "completed"

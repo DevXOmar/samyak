@@ -17,3 +17,15 @@ def test_train_only_novelty_and_model_disagreement():
 
 def test_no_model_does_not_fabricate_novelty(tmp_path):
     assert novelty_evidence(ModelService(tmp_path), [], "x=1", [])["status"] == "NOT_SUPPORTED"
+
+
+def test_correct_but_suspicious_fixture_abstains_on_ml_certainty():
+    from samyak.fixtures import fixture
+
+    source = fixture("unfamiliar")["source"]
+    _, functions, _ = analyze(source)
+    model = ModelService()
+    model.predict(functions)
+    proof = novelty_evidence(model, functions, source, model.retrieve(source))
+    assert proof["abstain"] and proof["status"] == "UNFAMILIAR"
+    assert "DictComp" in proof["unseen_ast_types"]

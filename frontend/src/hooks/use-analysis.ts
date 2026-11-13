@@ -10,7 +10,15 @@ import {
 } from "@/lib/client";
 export function useAnalysis() {
   const [source, setSourceState] = useState("");
-  const [tests, setTests] = useState<TestCase[]>([]);
+  const [tests, setTestsState] = useState<TestCase[]>([]);
+  const [contractDirty, setContractDirty] = useState(false);
+  const testsVersion = useRef(0);
+  const submittedVersion = useRef(0);
+  const setTests = useCallback((value: TestCase[]) => {
+    testsVersion.current++;
+    setTestsState(value);
+    setContractDirty(true);
+  }, []);
   const [fixture, setFixture] = useState<AnalysisRequest["fixture"]>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [report, setReport] = useState<Report | null>(null);
@@ -33,9 +41,15 @@ export function useAnalysis() {
       setJob(current);
       if (current.status === "FAILED")
         throw new Error(current.error || "Worker failed");
-      const result = await api<Report>(`/v1/analyses/${id}/report`);
+      const [result, timeline] = await Promise.all([
+        api<Report>(`/v1/analyses/${id}/report`),
+        api<PipelineEvent[]>(`/v1/analyses/${id}/timeline`),
+      ]);
       if (active.current !== id) return;
       setReport(result);
+      setEvents(timeline);
+      if (testsVersion.current === submittedVersion.current)
+        setContractDirty(false);
       setError("");
       setConnection("complete");
     } catch (e) {
@@ -77,7 +91,8 @@ export function useAnalysis() {
       sse.addEventListener("stage", (e) => {
         if (active.current !== next.id) return;
         const ev = JSON.parse((e as MessageEvent).data) as PipelineEvent;
-        lastEvent.current = Math.max(lastEvent.current, ev.id);
+        if (ev.id <= lastEvent.current) return;
+        lastEvent.current = ev.id;
         setEvents((old) =>
           old.some((v) => v.id === ev.id) ? old : [...old, ev],
         );
@@ -120,9 +135,9 @@ export function useAnalysis() {
           ).catch(() => null);
           if (active.current) return;
           if (request) {
-            setSource(request.source);
+            if (!sourceRef.current) setSource(request.source);
             setReport(request);
-            setTests(request.tests);
+            setTestsState(request.tests);
           }
           await watch(current);
         })
@@ -134,6 +149,7 @@ export function useAnalysis() {
       path = "/v1/analyses",
       body: unknown = { source: sourceRef.current, tests, fixture },
     ) => {
+      submittedVersion.current = testsVersion.current;
       setBusy(true);
       setError("");
       try {
@@ -155,7 +171,8 @@ export function useAnalysis() {
         active.current = null;
         localStorage.removeItem("samyak-job-v1");
         setSource(data.source);
-        setTests(data.tests || []);
+        setTestsState(data.tests || []);
+        setContractDirty(false);
         setFixture(name);
         setReport(null);
         setJob(null);
@@ -177,8 +194,8 @@ export function useAnalysis() {
     setFixture,
     job,
     report,
-    visibleReport: report?.source === source ? report : null,
-    stale: !!report && report.source !== source,
+    visibleReport: report?.source === source && !contractDirty ? report : null,
+    stale: !!report && (report.source !== source || contractDirty),
     events,
     busy,
     error,
@@ -186,7 +203,13 @@ export function useAnalysis() {
     connection,
     run,
     load,
-    retry: () => (job ? watch(job, true) : run()),
-    restore: () => report && setSource(report.source),
+    retry: () => (job && job.status !== "FAILED" ? watch(job, true) : run()),
+    restore: () => {
+      if (report) {
+        setSource(report.source);
+        setTestsState(report.tests);
+        setContractDirty(false);
+      }
+    },
   };
 }
