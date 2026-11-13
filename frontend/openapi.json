@@ -1,0 +1,1637 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SAMYAK Evidence API",
+    "version": "1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/fixtures/{name}": {
+      "get": {
+        "summary": "Get Fixture",
+        "operationId": "get_fixture_v1_fixtures__name__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRequest-Output"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses": {
+      "post": {
+        "summary": "Analyze",
+        "operationId": "analyze_v1_analyses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest-Input"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}": {
+      "get": {
+        "summary": "Job",
+        "operationId": "job_v1_analyses__ident__get",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/report": {
+      "get": {
+        "summary": "Report",
+        "operationId": "report_v1_analyses__ident__report_get",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/events": {
+      "get": {
+        "summary": "Events",
+        "operationId": "events_v1_analyses__ident__events_get",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/tests": {
+      "post": {
+        "summary": "Generate Tests",
+        "operationId": "generate_tests_v1_analyses__ident__tests_post",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/contracts/confirm": {
+      "post": {
+        "summary": "Confirm",
+        "operationId": "confirm_v1_analyses__ident__contracts_confirm_post",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Confirmation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/contracts/domain": {
+      "post": {
+        "summary": "Confirm Domain",
+        "operationId": "confirm_domain_v1_analyses__ident__contracts_domain_post",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DomainConfirmation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/patches": {
+      "get": {
+        "summary": "Patches",
+        "operationId": "patches_v1_analyses__ident__patches_get",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/patches/validate": {
+      "post": {
+        "summary": "Validate Patch",
+        "operationId": "validate_patch_v1_analyses__ident__patches_validate_post",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/bundle": {
+      "get": {
+        "summary": "Bundle",
+        "operationId": "bundle_v1_analyses__ident__bundle_get",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisRequest-Input": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 60000,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/TestCase-Input"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Tests"
+          },
+          "fixture": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "binary_search",
+                  "average",
+                  "caller_regression"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixture"
+          },
+          "property_contracts": {
+            "additionalProperties": {
+              "type": "string",
+              "const": "sorted_multiset"
+            },
+            "type": "object",
+            "title": "Property Contracts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "AnalysisRequest"
+      },
+      "AnalysisRequest-Output": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 60000,
+            "minLength": 1,
+            "title": "Source"
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/TestCase-Output"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "title": "Tests"
+          },
+          "fixture": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "binary_search",
+                  "average",
+                  "caller_regression"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fixture"
+          },
+          "property_contracts": {
+            "additionalProperties": {
+              "type": "string",
+              "const": "sorted_multiset"
+            },
+            "type": "object",
+            "title": "Property Contracts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "tests",
+          "fixture",
+          "property_contracts"
+        ],
+        "title": "AnalysisRequest"
+      },
+      "Candidate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "diff": {
+            "type": "string",
+            "title": "Diff"
+          },
+          "operator": {
+            "type": "string",
+            "title": "Operator"
+          },
+          "line": {
+            "type": "integer",
+            "title": "Line"
+          },
+          "prior": {
+            "type": "number",
+            "title": "Prior"
+          },
+          "context": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Context"
+          },
+          "changed_lines": {
+            "type": "integer",
+            "title": "Changed Lines"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict",
+            "default": "UNVERIFIED_SUGGESTION"
+          },
+          "checks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/Execution"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "performance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Performance"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "source_hash",
+          "source",
+          "diff",
+          "operator",
+          "line",
+          "prior",
+          "context",
+          "changed_lines",
+          "verdict",
+          "checks",
+          "results",
+          "performance"
+        ],
+        "title": "Candidate"
+      },
+      "Confirmation": {
+        "properties": {
+          "function": {
+            "type": "string",
+            "pattern": "^[A-Za-z_]\\w*$",
+            "title": "Function"
+          },
+          "args": {
+            "items": {},
+            "type": "array",
+            "title": "Args"
+          },
+          "kwargs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Kwargs"
+          },
+          "expected": {
+            "title": "Expected"
+          },
+          "reviewer": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reviewer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "function",
+          "args",
+          "reviewer"
+        ],
+        "title": "Confirmation"
+      },
+      "DomainConfirmation": {
+        "properties": {
+          "test_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Test Ids"
+          },
+          "reviewer": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reviewer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "test_ids",
+          "reviewer"
+        ],
+        "title": "DomainConfirmation"
+      },
+      "Execution": {
+        "properties": {
+          "test_id": {
+            "type": "string",
+            "title": "Test Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "output": {
+            "title": "Output"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "lines": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "median_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Ms"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          },
+          "samples_ms": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Samples Ms"
+          },
+          "repeatable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repeatable"
+          },
+          "stdout": {
+            "type": "string",
+            "title": "Stdout",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "test_id",
+          "status",
+          "output",
+          "error",
+          "lines",
+          "median_ms",
+          "p95_ms",
+          "samples_ms",
+          "repeatable",
+          "stdout"
+        ],
+        "title": "Execution"
+      },
+      "Finding": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "function": {
+            "type": "string",
+            "title": "Function"
+          },
+          "span": {
+            "$ref": "#/components/schemas/Span"
+          },
+          "explanation": {
+            "type": "string",
+            "title": "Explanation"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "CRITICAL",
+              "HIGH",
+              "MEDIUM",
+              "LOW"
+            ],
+            "title": "Severity",
+            "default": "MEDIUM"
+          },
+          "evidence": {
+            "type": "string",
+            "title": "Evidence",
+            "default": "HYPOTHESIS"
+          },
+          "strength": {
+            "type": "number",
+            "title": "Strength"
+          },
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "qualification": {
+            "type": "string",
+            "title": "Qualification"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "rule_id",
+          "function",
+          "span",
+          "explanation",
+          "severity",
+          "evidence",
+          "strength",
+          "family",
+          "qualification"
+        ],
+        "title": "Finding"
+      },
+      "FunctionInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "span": {
+            "$ref": "#/components/schemas/Span"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "features": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Features"
+          },
+          "risk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "family_distribution": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Family Distribution"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "span",
+          "source",
+          "features",
+          "risk",
+          "family",
+          "family_distribution"
+        ],
+        "title": "FunctionInfo"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Job": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "title": "Contract Version",
+            "default": "1.0"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "title": "Updated At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "report_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "id",
+          "parent_id",
+          "status",
+          "stage",
+          "created_at",
+          "updated_at",
+          "error",
+          "report_hash"
+        ],
+        "title": "Job"
+      },
+      "PatchRequest": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "maxLength": 60000,
+            "minLength": 1,
+            "title": "Source"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "PatchRequest"
+      },
+      "Report": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "title": "Contract Version",
+            "default": "1.0"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "source_hash": {
+            "type": "string",
+            "title": "Source Hash"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "test_revision": {
+            "type": "string",
+            "title": "Test Revision"
+          },
+          "structure": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Structure"
+          },
+          "functions": {
+            "items": {
+              "$ref": "#/components/schemas/FunctionInfo"
+            },
+            "type": "array",
+            "title": "Functions"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "localization": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Localization"
+          },
+          "inference": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Inference"
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/TestCase-Output"
+            },
+            "type": "array",
+            "title": "Tests"
+          },
+          "original_results": {
+            "items": {
+              "$ref": "#/components/schemas/Execution"
+            },
+            "type": "array",
+            "title": "Original Results"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/Candidate"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "precedents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Precedents"
+          },
+          "model": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Model"
+          },
+          "runner": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Runner"
+          },
+          "scanners": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Scanners"
+          },
+          "overall_risk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overall Risk"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Severity"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict",
+            "default": "INCONCLUSIVE_NO_OUTPUT_ORACLE"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          },
+          "outputs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Outputs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "job_id",
+          "parent_id",
+          "source_hash",
+          "source",
+          "test_revision",
+          "structure",
+          "functions",
+          "findings",
+          "localization",
+          "inference",
+          "tests",
+          "original_results",
+          "candidates",
+          "precedents",
+          "model",
+          "runner",
+          "scanners",
+          "overall_risk",
+          "severity",
+          "verdict",
+          "limitations",
+          "outputs"
+        ],
+        "title": "Report"
+      },
+      "Span": {
+        "properties": {
+          "start_line": {
+            "type": "integer",
+            "title": "Start Line"
+          },
+          "end_line": {
+            "type": "integer",
+            "title": "End Line"
+          },
+          "start_col": {
+            "type": "integer",
+            "title": "Start Col"
+          },
+          "end_col": {
+            "type": "integer",
+            "title": "End Col"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start_line",
+          "end_line",
+          "start_col",
+          "end_col"
+        ],
+        "title": "Span"
+      },
+      "TestCase-Input": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": ""
+          },
+          "function": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[A-Za-z_]\\w*$",
+            "title": "Function"
+          },
+          "args": {
+            "items": {},
+            "type": "array",
+            "maxItems": 12,
+            "title": "Args"
+          },
+          "kwargs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Kwargs"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "I",
+              "C"
+            ],
+            "title": "Tier",
+            "default": "C"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "UNCONFIRMED",
+              "OUT_OF_CONTRACT"
+            ],
+            "title": "Domain",
+            "default": "UNCONFIRMED"
+          },
+          "expected": {
+            "title": "Expected"
+          },
+          "has_expected": {
+            "type": "boolean",
+            "title": "Has Expected",
+            "default": false
+          },
+          "property": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "sorted_multiset"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Property"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "default": "GENERATED"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": "Exploratory input; no output oracle"
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy"
+          },
+          "minimized_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimized From"
+          },
+          "confirmation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmation Id"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "function"
+        ],
+        "title": "TestCase"
+      },
+      "TestCase-Output": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "default": ""
+          },
+          "function": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[A-Za-z_]\\w*$",
+            "title": "Function"
+          },
+          "args": {
+            "items": {},
+            "type": "array",
+            "maxItems": 12,
+            "title": "Args"
+          },
+          "kwargs": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Kwargs"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "I",
+              "C"
+            ],
+            "title": "Tier",
+            "default": "C"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "CONFIRMED",
+              "UNCONFIRMED",
+              "OUT_OF_CONTRACT"
+            ],
+            "title": "Domain",
+            "default": "UNCONFIRMED"
+          },
+          "expected": {
+            "title": "Expected"
+          },
+          "has_expected": {
+            "type": "boolean",
+            "title": "Has Expected",
+            "default": false
+          },
+          "property": {
+            "anyOf": [
+              {
+                "type": "string",
+                "const": "sorted_multiset"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Property"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "default": "GENERATED"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": "Exploratory input; no output oracle"
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strategy"
+          },
+          "minimized_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimized From"
+          },
+          "confirmation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmation Id"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "function",
+          "args",
+          "kwargs",
+          "tier",
+          "domain",
+          "expected",
+          "has_expected",
+          "property",
+          "origin",
+          "reason",
+          "strategy",
+          "minimized_from",
+          "confirmation_id",
+          "reviewer",
+          "confirmed_at"
+        ],
+        "title": "TestCase"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Event": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "job_id",
+          "stage",
+          "message",
+          "timestamp"
+        ],
+        "title": "Event",
+        "type": "object"
+      }
+    }
+  }
+}

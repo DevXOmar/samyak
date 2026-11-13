@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage*
+frontend/node_modules/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
+.env
+var/
+data/upstream/
+*.log
+.DS_Store
+frontend/public/monaco/
+.hypothesis/
+frontend/next-env.d.ts

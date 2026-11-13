@@ -1,0 +1,942 @@
+{
+  "validation": {
+    "REAL_BUGSINPY": {
+      "n": 0,
+      "status": "UNAVAILABLE_NO_SAMPLES"
+    },
+    "SYNTHETIC_ALGORITHM": {
+      "rf": {
+        "n": 4,
+        "positive_prevalence": 0.75,
+        "pr_auc": 0.9166666666666665,
+        "roc_auc": 0.6666666666666666,
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571428571428571,
+        "brier": 0.17217122296186743,
+        "confusion_matrix": [
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            3
+          ]
+        ]
+      },
+      "xgb": {
+        "n": 4,
+        "positive_prevalence": 0.75,
+        "pr_auc": 0.9166666666666665,
+        "roc_auc": 0.8333333333333333,
+        "precision": 0.75,
+        "recall": 1.0,
+        "f1": 0.8571428571428571,
+        "brier": 0.1769902348054899,
+        "confusion_matrix": [
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            3
+          ]
+        ]
+      },
+      "xgb_family": {
+        "report": {
+          "ARITHMETIC_OPERATOR": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BOUNDARY_COMPARISON": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 1.0
+          },
+          "CLEAN": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 1.0
+          },
+          "CONDITION_NEGATION": {
+            "precision": 0.5,
+            "recall": 1.0,
+            "f1-score": 0.6666666666666666,
+            "support": 1.0
+          },
+          "INDEX_OFFSET": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "OTHER": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "RETURN_VALUE": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 1.0
+          },
+          "accuracy": 0.75,
+          "macro avg": {
+            "precision": 0.35714285714285715,
+            "recall": 0.42857142857142855,
+            "f1-score": 0.38095238095238093,
+            "support": 4.0
+          },
+          "weighted avg": {
+            "precision": 0.625,
+            "recall": 0.75,
+            "f1-score": 0.6666666666666666,
+            "support": 4.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        ],
+        "abstain_rate": 0.0,
+        "excluded_unsupported": 0
+      },
+      "rf_family": {
+        "report": {
+          "ARITHMETIC_OPERATOR": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BOUNDARY_COMPARISON": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 1.0
+          },
+          "CLEAN": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 1.0
+          },
+          "CONDITION_NEGATION": {
+            "precision": 0.3333333333333333,
+            "recall": 1.0,
+            "f1-score": 0.5,
+            "support": 1.0
+          },
+          "INDEX_OFFSET": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "OTHER": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "RETURN_VALUE": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 1.0
+          },
+          "accuracy": 0.5,
+          "macro avg": {
+            "precision": 0.19047619047619047,
+            "recall": 0.2857142857142857,
+            "f1-score": 0.21428571428571427,
+            "support": 4.0
+          },
+          "weighted avg": {
+            "precision": 0.3333333333333333,
+            "recall": 0.5,
+            "f1-score": 0.375,
+            "support": 4.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ]
+        ],
+        "abstain_rate": 0.5,
+        "excluded_unsupported": 0
+      }
+    }
+  },
+  "test": {
+    "REAL_BUGSINPY": {
+      "rf": {
+        "n": 6,
+        "positive_prevalence": 0.5,
+        "pr_auc": 0.7222222222222222,
+        "roc_auc": 0.6111111111111112,
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.6666666666666666,
+        "brier": 0.24982625721516985,
+        "confusion_matrix": [
+          [
+            0,
+            3
+          ],
+          [
+            0,
+            3
+          ]
+        ]
+      },
+      "xgb": {
+        "n": 6,
+        "positive_prevalence": 0.5,
+        "pr_auc": 0.5,
+        "roc_auc": 0.4444444444444444,
+        "precision": 0.5,
+        "recall": 0.6666666666666666,
+        "f1": 0.5714285714285714,
+        "brier": 0.27673163950380963,
+        "confusion_matrix": [
+          [
+            1,
+            2
+          ],
+          [
+            1,
+            2
+          ]
+        ]
+      },
+      "xgb_family": {
+        "report": {
+          "ARITHMETIC_OPERATOR": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BOUNDARY_COMPARISON": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "CLEAN": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 3.0
+          },
+          "CONDITION_NEGATION": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "INDEX_OFFSET": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "OTHER": {
+            "precision": 0.5,
+            "recall": 1.0,
+            "f1-score": 0.6666666666666666,
+            "support": 3.0
+          },
+          "RETURN_VALUE": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.5,
+          "macro avg": {
+            "precision": 0.07142857142857142,
+            "recall": 0.14285714285714285,
+            "f1-score": 0.09523809523809523,
+            "support": 6.0
+          },
+          "weighted avg": {
+            "precision": 0.25,
+            "recall": 0.5,
+            "f1-score": 0.3333333333333333,
+            "support": 6.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            3,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "abstain_rate": 0.0,
+        "excluded_unsupported": 0
+      },
+      "rf_family": {
+        "report": {
+          "ARITHMETIC_OPERATOR": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BOUNDARY_COMPARISON": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "CLEAN": {
+            "precision": 0.5,
+            "recall": 0.3333333333333333,
+            "f1-score": 0.4,
+            "support": 3.0
+          },
+          "CONDITION_NEGATION": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "INDEX_OFFSET": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "OTHER": {
+            "precision": 0.5,
+            "recall": 0.3333333333333333,
+            "f1-score": 0.4,
+            "support": 3.0
+          },
+          "RETURN_VALUE": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.3333333333333333,
+          "macro avg": {
+            "precision": 0.14285714285714285,
+            "recall": 0.09523809523809523,
+            "f1-score": 0.1142857142857143,
+            "support": 6.0
+          },
+          "weighted avg": {
+            "precision": 0.5,
+            "recall": 0.3333333333333333,
+            "f1-score": 0.4000000000000001,
+            "support": 6.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            1,
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "abstain_rate": 0.8333333333333334,
+        "excluded_unsupported": 0
+      }
+    },
+    "SYNTHETIC_ALGORITHM": {
+      "rf": {
+        "n": 6,
+        "positive_prevalence": 0.8333333333333334,
+        "pr_auc": 0.9666666666666667,
+        "roc_auc": 0.8,
+        "precision": 0.8333333333333334,
+        "recall": 1.0,
+        "f1": 0.9090909090909091,
+        "brier": 0.1687657386864286,
+        "confusion_matrix": [
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      },
+      "xgb": {
+        "n": 6,
+        "positive_prevalence": 0.8333333333333334,
+        "pr_auc": 1.0,
+        "roc_auc": 1.0,
+        "precision": 0.8333333333333334,
+        "recall": 1.0,
+        "f1": 0.9090909090909091,
+        "brier": 0.16264025387998118,
+        "confusion_matrix": [
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            5
+          ]
+        ]
+      },
+      "xgb_family": {
+        "report": {
+          "ARITHMETIC_OPERATOR": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BOUNDARY_COMPARISON": {
+            "precision": 0.4,
+            "recall": 1.0,
+            "f1-score": 0.5714285714285714,
+            "support": 2.0
+          },
+          "CLEAN": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 1.0
+          },
+          "CONDITION_NEGATION": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 2.0
+          },
+          "INDEX_OFFSET": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "OTHER": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "RETURN_VALUE": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.4,
+          "macro avg": {
+            "precision": 0.05714285714285715,
+            "recall": 0.14285714285714285,
+            "f1-score": 0.08163265306122448,
+            "support": 5.0
+          },
+          "weighted avg": {
+            "precision": 0.16,
+            "recall": 0.4,
+            "f1-score": 0.22857142857142856,
+            "support": 5.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "abstain_rate": 0.0,
+        "excluded_unsupported": 1
+      },
+      "rf_family": {
+        "report": {
+          "ARITHMETIC_OPERATOR": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "BOUNDARY_COMPARISON": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1-score": 0.6666666666666666,
+            "support": 2.0
+          },
+          "CLEAN": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 1.0
+          },
+          "CONDITION_NEGATION": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "INDEX_OFFSET": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "OTHER": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "RETURN_VALUE": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.6,
+          "macro avg": {
+            "precision": 0.2857142857142857,
+            "recall": 0.21428571428571427,
+            "f1-score": 0.23809523809523808,
+            "support": 5.0
+          },
+          "weighted avg": {
+            "precision": 0.8,
+            "recall": 0.6,
+            "f1-score": 0.6666666666666666,
+            "support": 5.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            2,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "abstain_rate": 1.0,
+        "excluded_unsupported": 1
+      }
+    }
+  },
+  "localization_ablation": {
+    "REAL_BUGSINPY": {
+      "RULES_GRAPH": {
+        "n": 3,
+        "top1": 0.6666666666666666,
+        "top3": 0.6666666666666666,
+        "mrr": 0.6666666666666666
+      },
+      "BINARY_ML": {
+        "n": 3,
+        "top1": 0.6666666666666666,
+        "top3": 0.6666666666666666,
+        "mrr": 0.6666666666666666
+      },
+      "BINARY_FAMILY_ML": {
+        "n": 3,
+        "top1": 0.6666666666666666,
+        "top3": 0.6666666666666666,
+        "mrr": 0.6666666666666666
+      }
+    },
+    "SYNTHETIC_ALGORITHM": {
+      "RULES_GRAPH": {
+        "n": 5,
+        "top1": 0.0,
+        "top3": 0.0,
+        "mrr": 0.13333333333333336
+      },
+      "BINARY_ML": {
+        "n": 5,
+        "top1": 0.0,
+        "top3": 0.0,
+        "mrr": 0.13333333333333336
+      },
+      "BINARY_FAMILY_ML": {
+        "n": 5,
+        "top1": 0.0,
+        "top3": 0.0,
+        "mrr": 0.13333333333333336
+      }
+    }
+  },
+  "EXTERNAL_QUIXBUGS": {
+    "status": "NOT_EVALUATED",
+    "reason": "Phase 1 has no downloaded external cohort; zero training/retrieval/tuning exposure"
+  },
+  "FAMILY_HOLDOUT": {
+    "status": "NOT_EVALUATED",
+    "reason": "No extra family holdout fitted; project/problem holdouts reported separately"
+  }
+}
