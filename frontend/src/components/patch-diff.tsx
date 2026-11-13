@@ -41,6 +41,7 @@ export default function PatchDiff({
       options={{
         readOnly: true,
         renderSideBySide: true,
+        useInlineViewWhenSpaceIsLimited: false,
         originalEditable: false,
         automaticLayout: true,
         minimap: { enabled: false },

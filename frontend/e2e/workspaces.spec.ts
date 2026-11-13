@@ -60,6 +60,12 @@ test("editing, live analysis, exact findings, graph, accepted/rejected diffs and
   ).toBeVisible();
   await expect(page.locator(".monaco-diff-editor")).toBeVisible();
   await expect(
+    page.locator(".monaco-diff-editor .editor.original"),
+  ).toBeVisible();
+  await expect(
+    page.locator(".monaco-diff-editor .editor.modified"),
+  ).toBeVisible();
+  await expect(
     page.getByRole("region", { name: "Repair Tournament" }),
   ).toContainText("WINNER");
   await workspace(page, "Workbench");

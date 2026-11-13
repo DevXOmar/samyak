@@ -1023,3 +1023,26 @@ td code {
   border-radius: 6px;
   overflow: hidden;
 }
+/* Surface changes stay immediate on theme switches so intermediate frames retain contrast. */
+.demo-card {
+  transition: border-color 0.15s;
+}
+.button-primary,
+.button-outline,
+.button-ghost {
+  transition-property: border-color;
+}
+.arena-details {
+  grid-template-columns: minmax(0, 1fr) 306px;
+}
+.gate code {
+  min-width: 0;
+  max-width: 145px;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+@media (max-width: 1000px) {
+  .arena-details {
+    grid-template-columns: 1fr;
+  }
+}

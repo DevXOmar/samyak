@@ -243,6 +243,12 @@ export default function Workbench() {
         reviewer: "workbench-user",
       });
   }
+  function caseLabel(id: unknown) {
+    const test = report?.tests.find((t) => t.id === id);
+    return test
+      ? `${test.function}(${JSON.stringify(test.args)})`
+      : String(id || "Gate");
+  }
   function submitConfirmation() {
     if (!report || !confirmation) return;
     try {
@@ -1164,10 +1170,7 @@ export default function Workbench() {
                             .map((check, index) => (
                               <div className="gate" key={index}>
                                 <code className="text-[10px]">
-                                  {String(check.test_id || check.gate).slice(
-                                    0,
-                                    16,
-                                  )}
+                                  {caseLabel(check.test_id || check.gate)}
                                 </code>
                                 <span>
                                   {String(
