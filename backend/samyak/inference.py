@@ -237,7 +237,7 @@ def shrink_fault(source, tests, results, runner, max_attempts=10):
         "list[int]" if isinstance(a, list) else "str" if isinstance(a, str) else "int" for a in test.args
     ]
     attempts = 0
-    cache = {}
+    cache = {json.dumps(test.args, sort_keys=True): (True, observed)}
 
     def predicate(args):
         nonlocal attempts
@@ -266,26 +266,65 @@ def shrink_fault(source, tests, results, runner, max_attempts=10):
         cache[key] = (matched, result)
         return matched
 
-    try:
-        minimal = find(
-            st.tuples(*(strategy(k) for k in kinds)),
-            predicate,
-            settings=settings(max_examples=max_attempts, derandomize=True, database=None, deadline=None),
-        )
-        return {
-            "test_id": test.id,
-            "minimal_args": list(minimal),
-            "method": "Hypothesis.find bounded shrinking",
-            "attempts": attempts,
-            "domain": test.domain if list(minimal) == test.args else "UNCONFIRMED",
-            "observation": cache[json.dumps(minimal, sort_keys=True)][1].model_dump(),
-            "note": "Shrinking preserves the exception signature, not an output oracle or a broader input contract",
-        }
-    except errors.HypothesisException as exc:
-        return {
-            "test_id": test.id,
-            "minimal_args": test.args,
-            "method": "original witness retained",
-            "reason": type(exc).__name__,
-            "attempts": attempts,
-        }
+    def weight(value):
+        if isinstance(value, list):
+            return 1 + sum(weight(v) for v in value)
+        if isinstance(value, (int, float)):
+            return 1 + len(str(value)) + int(value != 0)
+        return 1 + len(json.dumps(value))
+
+    # Start from the actual failure. Never replace it with a larger generated witness.
+    best = json.loads(json.dumps(test.args))
+    for index in range(len(best)):
+        changed = True
+        while changed and attempts < max_attempts:
+            changed = False
+            value = best[index]
+            variants = []
+            if isinstance(value, (list, str)) and value:
+                middle = max(1, len(value) // 2)
+                variants = [value[:middle], value[middle:]]
+                variants += [value[:i] + value[i + 1 :] for i in range(min(4, len(value)))]
+                if isinstance(value, list) and all(type(v) in {int, float} for v in value):
+                    variants.append([0 for _ in value])
+            elif isinstance(value, (int, float)):
+                variants = [0, 1 if value > 0 else -1]
+            for variant in variants:
+                candidate = list(best)
+                candidate[index] = variant
+                if weight(candidate) < weight(best) and predicate(candidate):
+                    best, changed = candidate, True
+                    break
+                if attempts >= max_attempts:
+                    break
+    reason = None
+    if attempts < max_attempts:
+        try:
+            found = list(
+                find(
+                    st.tuples(*(strategy(k) for k in kinds)),
+                    predicate,
+                    settings=settings(
+                        max_examples=max_attempts, derandomize=True, database=None, deadline=None
+                    ),
+                )
+            )
+            if weight(found) < weight(best):
+                best = found
+        except errors.HypothesisException as exc:
+            reason = type(exc).__name__
+    result = cache[json.dumps(best, sort_keys=True)][1]
+    return {
+        "test_id": test.id,
+        "original_args": test.args,
+        "minimal_args": best,
+        "method": "Bounded delta debugging + Hypothesis.find",
+        "attempts": attempts,
+        "domain": test.domain if best == test.args else "UNCONFIRMED",
+        "observation": result.model_dump(),
+        "input_weight_before": weight(test.args),
+        "input_weight_after": weight(best),
+        "search_limit": max_attempts,
+        "search_note": reason,
+        "note": "Best reproduced witness within the probe budget, not a global minimum or a transferred output/domain oracle",
+    }

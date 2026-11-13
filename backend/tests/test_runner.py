@@ -63,3 +63,16 @@ def test_timeout_and_output_limit_do_not_pass(runner):
     assert result.status in {"TIMEOUT", "SANDBOX_ERROR"}
     result = runner.run('def large():\n return "x" * 100000\n', [TestCase(id="large", function="large")])[0]
     assert result.status in {"OUTPUT_LIMIT", "SANDBOX_ERROR"}
+
+
+def test_actual_counterexample_delta_reduction_never_enlarges_witness(runner):
+    from samyak.inference import shrink_fault
+
+    source = "def fail_when_long(nums):\n    if len(nums) >= 2:\n        return 1 / 0\n    return 0\n"
+    case = TestCase(id="long", function="fail_when_long", args=[[9, 8, 7, 6, 5]])
+    original = runner.run(source, [case])[0]
+    assert original.status == "ERROR"
+    proof = shrink_fault(source, [case], [original], runner)
+    assert len(proof["minimal_args"][0]) == 2
+    assert proof["input_weight_after"] < proof["input_weight_before"]
+    assert proof["observation"]["status"] == "ERROR" and proof["attempts"] <= 10
