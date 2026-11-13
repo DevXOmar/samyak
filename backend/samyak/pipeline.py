@@ -8,6 +8,8 @@ from .ml import ModelService, novelty_evidence, index_identity, edit_priors
 from .repair import OPERATORS, candidates, llm_candidates, make_candidate, safety, validate
 from .runner import DockerRunner
 from .store import digest
+from .impact import enrich_tournament
+from .ledger import ledger_metadata
 from .structure import analyze, localize
 
 
@@ -69,6 +71,9 @@ def run_pipeline(ident, payload, stage, parent=None):
         report.limitations.append(str(exc))
         outputs(report)
         return report
+    report.intelligence["actions"] = ["replay", "witness", "precedents", "ledger"]
+    report.intelligence["contract_decisions"] = payload.get("decisions", [])
+    report.intelligence["property_confirmations"] = payload.get("property_confirmations", [])
     report.scanners = scanners(source)
     stage(
         "prediction", "Loading independently trained binary and family models and train-only precedent index"
@@ -231,6 +236,8 @@ def run_pipeline(ident, payload, stage, parent=None):
                 ),
                 "INCONCLUSIVE_NO_OUTPUT_ORACLE",
             )
+    enrich_tournament(report)
+    report.intelligence["ledger"] = ledger_metadata(report)
     report.limitations += [
         "Docker-only isolation is development-grade; do not expose this runner as a public multi-tenant service",
         "Python 3.11 pure functions with finite JSON arguments/results; no package installation",

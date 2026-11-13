@@ -183,6 +183,8 @@ export default function Workbench() {
   const patched = new Map(candidate?.results.map((r) => [r.test_id, r]));
   const confirmation = report?.tests.find((t) => t.id === confirmId);
   const details = report?.intelligence || {};
+  const can = (action: string) =>
+    Array.isArray(details.actions) && details.actions.includes(action);
   const investigate = (action: string, extra: object = {}) =>
     report &&
     void a.run(`/v1/analyses/${report.job_id}/investigate`, {
@@ -878,14 +880,14 @@ export default function Workbench() {
                 <Experiment
                   title="Counterexample Studio"
                   data={details.witness || report.structure.minimal_witness}
-                  action={details.actions ? "witness" : undefined}
+                  action={can("witness") ? "witness" : undefined}
                   busy={a.busy}
                   run={investigate}
                 />
                 <Experiment
                   title="Metamorphic Shield"
                   data={details.metamorphic}
-                  action={details.actions ? "metamorphic" : undefined}
+                  action={can("metamorphic") ? "metamorphic" : undefined}
                   busy={a.busy}
                   run={investigate}
                 />
@@ -1087,7 +1089,7 @@ export default function Workbench() {
                 <Experiment
                   title="Precedent comparison"
                   data={details.precedents}
-                  action={details.actions ? "precedents" : undefined}
+                  action={can("precedents") ? "precedents" : undefined}
                   busy={a.busy}
                   run={investigate}
                 />
@@ -1213,14 +1215,14 @@ export default function Workbench() {
                 <Experiment
                   title="Proof-Carrying Patch Ledger"
                   data={details.ledger}
-                  action={details.actions ? "ledger" : undefined}
+                  action={can("ledger") ? "ledger" : undefined}
                   busy={a.busy}
                   run={investigate}
                 />
                 <Experiment
                   title="Semantic Twin Challenge"
                   data={details.twin}
-                  action={details.actions ? "twin" : undefined}
+                  action={can("twin") ? "twin" : undefined}
                   busy={a.busy}
                   run={investigate}
                 />

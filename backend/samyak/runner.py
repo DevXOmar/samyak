@@ -13,6 +13,9 @@ class DockerRunner:
 
     def __init__(self):
         self.image = os.getenv("SAMYAK_RUNNER_IMAGE", "samyak-runner:phase1")
+        # Docker Desktop's containerd store can list short tags but require canonical inspect names.
+        if "/" not in self.image and not self.image.startswith("sha256:"):
+            self.image = "docker.io/library/" + self.image
         self.manifest = {
             "status": "EXECUTION_UNAVAILABLE",
             "isolation": "Docker-only development-grade",

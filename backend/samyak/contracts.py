@@ -180,3 +180,21 @@ class Event(ContractModel):
     stage: str
     message: str
     timestamp: str
+
+
+class InvestigationRequest(ContractModel):
+    action: Literal["replay", "witness", "precedents", "ledger", "twin", "metamorphic"]
+    test_id: str | None = Field(default=None, max_length=100)
+
+
+class ContractDecision(ContractModel):
+    test_id: str
+    expected: Any = None
+    reviewer: str = Field(min_length=1, max_length=100)
+    decision: Literal["REJECT_EXPECTATION"] = "REJECT_EXPECTATION"
+
+
+class PropertyConfirmation(ContractModel):
+    function: str = Field(pattern=r"^[A-Za-z_]\w*$", max_length=100)
+    property: Literal["sorted_multiset"] = "sorted_multiset"
+    reviewer: str = Field(min_length=1, max_length=100)

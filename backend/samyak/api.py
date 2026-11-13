@@ -1,7 +1,5 @@
 import asyncio
-import io
 import json
-import zipfile
 from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse, Response
@@ -15,8 +13,12 @@ from .contracts import (
     Event,
     VERSION,
     TestCase,
+    InvestigationRequest,
+    ContractDecision,
+    PropertyConfirmation,
 )
 from .fixtures import fixture
+from .ledger import build_bundle
 from .inference import identify
 from .store import Store, digest
 
@@ -105,6 +107,8 @@ async def events(ident: str, request: Request, after: int = 0):
 def generate_tests(ident: str):
     get_job(ident)
     payload = store().request(ident)
+    payload.pop("investigation", None)
+    payload.pop("base_report_hash", None)
     payload.pop("patch_source", None)
     return store().submit(payload, ident)
 
@@ -137,6 +141,8 @@ def confirm(ident: str, confirmation: Confirmation):
         t for t in tests if (t["function"], t["args"], t["kwargs"]) != (test.function, test.args, test.kwargs)
     ]
     payload["analysis"]["tests"] = [*tests, test.model_dump()]
+    payload.pop("investigation", None)
+    payload.pop("base_report_hash", None)
     payload.pop("patch_source", None)
     return store().submit(payload, ident)
 
@@ -161,7 +167,49 @@ def confirm_domain(ident: str, confirmation: DomainConfirmation):
         t.confirmation_id = digest(confirmation.model_dump_json() + datetime.now(timezone.utc).isoformat())
         tests.append(t.model_dump())
     payload["analysis"]["tests"] = tests
+    payload.pop("investigation", None)
+    payload.pop("base_report_hash", None)
     payload.pop("patch_source", None)
+    return store().submit(payload, ident)
+
+
+@app.post("/v1/analyses/{ident}/investigate", response_model=Job, status_code=202)
+def investigate(ident: str, request: InvestigationRequest):
+    previous = get_report(ident)
+    if request.test_id and request.test_id not in {t["id"] for t in previous["tests"]}:
+        raise HTTPException(422, "Unknown recorded test")
+    payload = store().request(ident)
+    payload["investigation"] = request.model_dump()
+    payload["base_report_hash"] = store().job(ident).report_hash
+    return store().submit(payload, ident)
+
+
+@app.post("/v1/analyses/{ident}/contracts/decision", response_model=Job, status_code=202)
+def decline_expectation(ident: str, decision: ContractDecision):
+    previous = get_report(ident)
+    if decision.test_id not in {t["id"] for t in previous["tests"]}:
+        raise HTTPException(422, "Unknown recorded test")
+    payload = store().request(ident)
+    payload.pop("investigation", None)
+    payload.pop("base_report_hash", None)
+    payload.setdefault("decisions", []).append(
+        {**decision.model_dump(), "timestamp": datetime.now(timezone.utc).isoformat()}
+    )
+    return store().submit(payload, ident)
+
+
+@app.post("/v1/analyses/{ident}/contracts/property", response_model=Job, status_code=202)
+def declare_property(ident: str, confirmation: PropertyConfirmation):
+    previous = get_report(ident)
+    if confirmation.function not in {f["name"] for f in previous["functions"]}:
+        raise HTTPException(422, "Unknown function")
+    payload = store().request(ident)
+    payload.pop("investigation", None)
+    payload.pop("base_report_hash", None)
+    payload["analysis"]["property_contracts"][confirmation.function] = confirmation.property
+    payload.setdefault("property_confirmations", []).append(
+        {**confirmation.model_dump(), "timestamp": datetime.now(timezone.utc).isoformat()}
+    )
     return store().submit(payload, ident)
 
 
@@ -174,6 +222,8 @@ def patches(ident: str):
 def validate_patch(ident: str, patch: PatchRequest):
     get_report(ident)
     payload = store().request(ident)
+    payload.pop("investigation", None)
+    payload.pop("base_report_hash", None)
     payload["patch_source"] = patch.source
     return store().submit(payload, ident)
 
@@ -181,34 +231,9 @@ def validate_patch(ident: str, patch: PatchRequest):
 @app.get("/v1/analyses/{ident}/bundle")
 def bundle(ident: str):
     report = get_report(ident)
-    files = {
-        "report.json": json.dumps(report, indent=2),
-        "original.py": report["source"],
-        "tests.json": json.dumps(report["tests"], indent=2),
-        "request.json": json.dumps(store().request(ident), indent=2),
-        "events.json": json.dumps(store().events(ident), indent=2),
-    }
-    for candidate in report["candidates"]:
-        files[f"patches/{candidate['id']}.py"] = candidate["source"]
-        files[f"patches/{candidate['id']}.diff"] = candidate["diff"]
-    manifest = {
-        "contract_version": VERSION,
-        "job_id": ident,
-        "parent_id": report["parent_id"],
-        "source_hash": report["source_hash"],
-        "test_revision": report["test_revision"],
-        "model_id": report["model"].get("model_id"),
-        "runner": report["runner"],
-        "files": {name: digest(raw) for name, raw in files.items()},
-        "replay": "PYTHONPATH=backend .venv/bin/python scripts/replay.py <extracted-directory>",
-    }
-    files["repair_manifest.json"] = json.dumps(manifest, indent=2)
-    output = io.BytesIO()
-    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
-        for name, raw in files.items():
-            archive.writestr(name, raw)
+    blob = build_bundle(report, store().request(ident), store().events(ident))
     return Response(
-        output.getvalue(),
+        blob,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="samyak-{ident}.zip"'},
     )

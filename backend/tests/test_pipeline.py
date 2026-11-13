@@ -56,6 +56,10 @@ def test_wrong_local_patch_rejected_by_caller(client):
     harmful = next(c for c in report["candidates"] if c["operator"] == "REPLACE_RETURN")
     assert harmful["verdict"] == "REJECTED_REGRESSION"
     assert any(check["regression"] for check in harmful["checks"])
+    impact = report["intelligence"]["blast_radius"]["candidates"][harmful["id"]]
+    assert "contains" in impact["affected_functions"] and impact["caller_regression_ids"]
+    assert report["intelligence"]["risk_budget"]["candidates"][harmful["id"]]["band"] == "DO_NOT_RECOMMEND"
+    assert report["intelligence"]["tournament"]["winner_id"]
 
 
 def test_unknown_domain_then_exact_confirmation_is_new_revision(client):

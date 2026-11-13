@@ -365,6 +365,153 @@
         }
       }
     },
+    "/v1/analyses/{ident}/investigate": {
+      "post": {
+        "summary": "Investigate",
+        "operationId": "investigate_v1_analyses__ident__investigate_post",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvestigationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/contracts/decision": {
+      "post": {
+        "summary": "Decline Expectation",
+        "operationId": "decline_expectation_v1_analyses__ident__contracts_decision_post",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContractDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analyses/{ident}/contracts/property": {
+      "post": {
+        "summary": "Declare Property",
+        "operationId": "declare_property_v1_analyses__ident__contracts_property_post",
+        "parameters": [
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PropertyConfirmation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/analyses/{ident}/patches": {
       "get": {
         "summary": "Patches",
@@ -710,6 +857,36 @@
         ],
         "title": "Confirmation"
       },
+      "ContractDecision": {
+        "properties": {
+          "test_id": {
+            "type": "string",
+            "title": "Test Id"
+          },
+          "expected": {
+            "title": "Expected"
+          },
+          "reviewer": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reviewer"
+          },
+          "decision": {
+            "type": "string",
+            "const": "REJECT_EXPECTATION",
+            "title": "Decision",
+            "default": "REJECT_EXPECTATION"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "test_id",
+          "reviewer"
+        ],
+        "title": "ContractDecision"
+      },
       "DomainConfirmation": {
         "properties": {
           "test_ids": {
@@ -971,6 +1148,40 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "InvestigationRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "replay",
+              "witness",
+              "precedents",
+              "ledger",
+              "twin",
+              "metamorphic"
+            ],
+            "title": "Action"
+          },
+          "test_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "InvestigationRequest"
+      },
       "Job": {
         "properties": {
           "contract_version": {
@@ -1062,6 +1273,35 @@
           "source"
         ],
         "title": "PatchRequest"
+      },
+      "PropertyConfirmation": {
+        "properties": {
+          "function": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[A-Za-z_]\\w*$",
+            "title": "Function"
+          },
+          "property": {
+            "type": "string",
+            "const": "sorted_multiset",
+            "title": "Property",
+            "default": "sorted_multiset"
+          },
+          "reviewer": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Reviewer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "function",
+          "reviewer"
+        ],
+        "title": "PropertyConfirmation"
       },
       "Report": {
         "properties": {

@@ -3,6 +3,7 @@ from pathlib import Path
 import time
 import traceback
 from .pipeline import run_pipeline
+from .investigations import run_investigation
 from .store import Store
 
 
@@ -12,9 +13,15 @@ def process_one(store):
         return False
     try:
         job = store.job(ident)
-        report = run_pipeline(
-            ident, store.request(ident), lambda s, m: store.event(ident, s, m), job.parent_id
-        )
+        payload = store.request(ident)
+
+        def stage(s, m):
+            store.event(ident, s, m)
+
+        if payload.get("investigation"):
+            report = run_investigation(ident, payload, store.read(payload["base_report_hash"]), stage)
+        else:
+            report = run_pipeline(ident, payload, stage, job.parent_id)
         store.finish(ident, report.model_dump())
     except Exception as exc:
         traceback.print_exc()
