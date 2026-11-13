@@ -2,7 +2,7 @@ PYTHON ?= python3.11
 VENV := .venv/bin
 export PYTHONPATH := backend:.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
-.PHONY: setup runner sources corpus train types dev demo test lint build check reproduce
+.PHONY: setup runner sources corpus train types dev demo test e2e lint build check reproduce
 setup:
 	$(PYTHON) -m venv .venv
 	$(VENV)/python -m pip install -r requirements.lock
@@ -25,6 +25,8 @@ demo:
 test:
 	$(VENV)/pytest -q
 	cd frontend && npm test
+e2e:
+	cd frontend && npm run test:e2e
 lint:
 	$(VENV)/ruff check backend scripts runner
 	$(VENV)/ruff format --check backend scripts runner
