@@ -1,4 +1,9 @@
 import ast
+import atexit
+from copy import deepcopy
+from threading import Lock
+
+
 from collections import Counter
 import io
 import json
@@ -11,6 +16,10 @@ from scipy.sparse import csr_matrix, hstack
 from sklearn.metrics.pairwise import cosine_similarity
 from .structure import FEATURES, numeric
 from .store import ROOT, digest
+
+_MODEL_CACHE = {}
+_MODEL_LOCK = Lock()
+atexit.register(_MODEL_CACHE.clear)
 
 
 def code_text(source):
@@ -76,10 +85,23 @@ class ModelService:
         }
         if (directory / "model.joblib").exists():
             # Only trusted locally trained artifacts. Never deserialize uploaded model files.
-            self.meta = json.loads((directory / "manifest.json").read_text())
-            if digest((directory / "model.joblib").read_bytes()) != self.meta["artifact_sha256"]:
+            manifest_bytes = (directory / "manifest.json").read_bytes()
+            artifact_bytes = (directory / "model.joblib").read_bytes()
+            self.meta = json.loads(manifest_bytes)
+            if digest(artifact_bytes) != self.meta["artifact_sha256"]:
                 raise ValueError("Model artifact integrity mismatch")
-            self.bundle = joblib.load(directory / "model.joblib")
+            key = (
+                str(directory.resolve()),
+                self.meta["artifact_sha256"],
+                digest(manifest_bytes),
+            )
+            with _MODEL_LOCK:
+                if key not in _MODEL_CACHE:
+                    bundle = joblib.load(io.BytesIO(artifact_bytes))
+                    _MODEL_CACHE.clear()
+                    _MODEL_CACHE[key] = bundle
+                self.bundle = _MODEL_CACHE[key]
+            self.meta = deepcopy(self.meta)
 
     def predict(self, functions):
         if self.bundle is None or not functions:

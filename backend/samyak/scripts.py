@@ -23,6 +23,12 @@ def module_facts(source):
 
     class Collector(ModuleVisitor):
         def generic_visit(self, node):
+            if (
+                isinstance(node, ast.Expr)
+                and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)
+            ):
+                return
             if isinstance(node, ast.stmt):
                 statements.append(node)
             super().generic_visit(node)

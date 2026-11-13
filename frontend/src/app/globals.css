@@ -1417,3 +1417,119 @@ td code {
   padding: 16px 0;
   background: transparent;
 }
+.metric-cohort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+  font-size: 11px;
+}
+.metric-cohort select {
+  margin-left: 10px;
+}
+.performance-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  padding: 12px 0;
+}
+.performance-metrics h3 {
+  font-size: 12px;
+  margin-bottom: 16px;
+}
+.comparison-bar {
+  display: grid;
+  grid-template-columns: 55px minmax(0, 1fr) 40px;
+  gap: 10px;
+  align-items: center;
+  margin: 12px 0;
+  font: 11px var(--font-mono);
+}
+.metric-track {
+  display: block;
+  height: 6px;
+  border-radius: 4px;
+  background: var(--soft);
+  overflow: hidden;
+  min-width: 30px;
+}
+.metric-track i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+.comparison-bar.rf .metric-track i {
+  background: var(--muted);
+}
+.metric-footnote {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin: 12px 0;
+}
+.ablation-cell {
+  display: grid;
+  grid-template-columns: minmax(30px, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+}
+.confusion-heatmap td {
+  text-align: center;
+  min-width: 38px;
+  font-family: var(--font-mono);
+}
+.confusion-heatmap th {
+  font-size: 9px;
+}
+.function-risk-list {
+  max-height: 290px;
+  overflow: auto;
+  margin: 15px 0;
+}
+.function-risk-list button {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(40px, 1fr) 55px;
+  gap: 15px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  font-size: 11px;
+}
+.function-risk-list button[aria-pressed="true"] {
+  background: var(--soft);
+  border-left: 2px solid var(--gold);
+}
+.compact-function-detail {
+  font-size: 12px;
+  line-height: 1.8;
+}
+.stage-clock {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 8px 0 16px;
+  font: 10px var(--font-mono);
+  color: var(--muted);
+}
+.stage-clock details {
+  max-width: 60%;
+}
+@media (max-width: 650px) {
+  .performance-metrics {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .function-risk-list button {
+    gap: 8px;
+  }
+  .stage-clock {
+    flex-wrap: wrap;
+  }
+  .stage-clock details {
+    max-width: 100%;
+  }
+}

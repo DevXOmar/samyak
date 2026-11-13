@@ -205,7 +205,7 @@ test("unfamiliar correct fixture abstains without false confirmation", async ({
   ).toBeVisible();
   await expect(
     page.getByText(
-      "Small held-out cohorts. No measured ML localization uplift.",
+      "Held-out evaluation, not confidence in this submission. Small cohorts; N/A means the metric is undefined or absent. No measured ML localization uplift.",
     ),
   ).toBeVisible();
 });
@@ -328,7 +328,7 @@ test("witness, retrieval, twin and ledger actions produce inspected artifacts", 
   );
   await expect(page.locator(".intro-action")).toContainText("COMPLETED");
   await expect(
-    page.getByRole("heading", { name: "This analysis", exact: true }),
+    page.getByRole("heading", { name: "Code Intelligence", exact: true }),
   ).toBeVisible();
   await page
     .locator(".lab-disclosure")
@@ -358,7 +358,7 @@ test("witness, retrieval, twin and ledger actions produce inspected artifacts", 
   );
   await expect(page.locator(".intro-action")).toContainText("COMPLETED");
   await expect(
-    page.getByRole("heading", { name: "This analysis", exact: true }),
+    page.getByRole("heading", { name: "Code Intelligence", exact: true }),
   ).toBeVisible();
   await page
     .locator(".lab-disclosure")

@@ -1,9 +1,12 @@
 import json
+import os
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from pathlib import Path
 import subprocess
 import tempfile
 from .contracts import AnalysisRequest, Execution, Finding, Report, Span
-from .inference import infer, shrink_fault
+from .inference import infer
 from .ml import ModelService, novelty_evidence, index_identity, edit_priors
 from .repair import OPERATORS, candidates, llm_candidates, make_candidate, safety, validate
 from .runner import DockerRunner
@@ -267,12 +270,9 @@ def run_pipeline(ident, payload, stage, parent=None):
                 for t, r in related
             ]
             inference["trial_status"] = "OBSERVED" if related else "NO_TRIALS"
-        witness = shrink_fault(source, report.tests, report.original_results, runner)
-        if witness:
-            report.structure["minimal_witness"] = witness
     report.intelligence["witness"] = {
         "status": "NOT_RUN",
-        "reason": "Find the smallest supported, independently replayed failure. Exact semantic oracles are never transferred to new tuples.",
+        "reason": "Minimize a selected reproduced failure on demand. Exact semantic oracles are never transferred to new tuples.",
         "initial_runtime_observation": report.structure.get("minimal_witness"),
     }
     report.runner = runner.manifest
@@ -331,8 +331,32 @@ def run_pipeline(ident, payload, stage, parent=None):
         f"Validating {len(report.candidates)} candidates against the identical frozen suite and affected callers",
     )
     if not blocked:
-        for candidate in report.candidates:
-            validate(candidate, source, report.tests, report.original_results, runner)
+        concurrency = 2 if os.getenv("SAMYAK_CANDIDATE_CONCURRENCY", "2") == "2" else 1
+        report.intelligence["execution_policy"] = {
+            "candidate_suite_limit": concurrency,
+            "ordering": "Original candidate order; fresh isolated container per suite; all replays preserved",
+        }
+        if concurrency == 2 and len(report.candidates) > 1:
+            # Only independent immutable candidates run concurrently; every suite/replay is preserved.
+            runner.available()
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [
+                    pool.submit(
+                        copy_context().run,
+                        validate,
+                        candidate,
+                        source,
+                        report.tests,
+                        report.original_results,
+                        runner,
+                    )
+                    for candidate in report.candidates
+                ]
+                for future in futures:
+                    future.result()
+        else:
+            for candidate in report.candidates:
+                validate(candidate, source, report.tests, report.original_results, runner)
         winners = [
             c
             for c in report.candidates

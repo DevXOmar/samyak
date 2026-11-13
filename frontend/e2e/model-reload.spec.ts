@@ -69,12 +69,12 @@ test("model lab uses real metrics, retains actions and fits both themes", async 
   await expect(page.getByTestId("verdict")).not.toContainText("AWAITING");
   await page.getByRole("tab", { name: "05 Model Lab & Vault" }).click();
   await expect(
-    page.getByRole("heading", { name: "This analysis", exact: true }),
+    page.getByRole("heading", { name: "Code Intelligence", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Held-out comparison")).toBeVisible();
+  await expect(page.getByLabel("Evaluation cohort")).toBeVisible();
   await expect(
     page.getByText(
-      "Small held-out cohorts. No measured ML localization uplift.",
+      "Held-out evaluation, not confidence in this submission. Small cohorts; N/A means the metric is undefined or absent. No measured ML localization uplift.",
     ),
   ).toBeVisible();
   await expect(
@@ -123,7 +123,7 @@ test("missing model and script-only evidence are explained", async ({
   await expect(page.getByTestId("verdict")).not.toContainText("AWAITING");
   await page.getByRole("tab", { name: "05 Model Lab & Vault" }).click();
   await expect(
-    page.getByRole("heading", { name: "This analysis", exact: true }),
+    page.getByRole("heading", { name: "Code Intelligence", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText(/Not applicable to script-only source/),

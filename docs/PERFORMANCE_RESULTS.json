@@ -1,0 +1,387 @@
+[
+  {
+    "fixture": "binary_search",
+    "before": {
+      "fixture": "binary_search",
+      "job_id": "fd2347608562415fac8e0a46e78ada14",
+      "wall_seconds": 8.13907754200045,
+      "suite_calls": 7,
+      "executed_cases_requested": 79,
+      "availability_calls": 7,
+      "docker_invocations": 7,
+      "image_inspections": 7,
+      "stages": [
+        {
+          "stage": "queued",
+          "seconds": 0.000963
+        },
+        {
+          "stage": "structure",
+          "seconds": 0.008949
+        },
+        {
+          "stage": "prediction",
+          "seconds": 0.24449
+        },
+        {
+          "stage": "inference",
+          "seconds": 0.04806
+        },
+        {
+          "stage": "execution",
+          "seconds": 1.782352
+        },
+        {
+          "stage": "localization",
+          "seconds": 0.00175
+        },
+        {
+          "stage": "repair",
+          "seconds": 0.011286
+        },
+        {
+          "stage": "validation",
+          "seconds": 6.033446
+        },
+        {
+          "stage": "evidence",
+          "seconds": 0.005085
+        }
+      ],
+      "source_hash": "c840272c2023430d7807a29783b655ac3465fb4793c61fa834627b28b6ce0fc6",
+      "request_hash": "f43af58d0cf839c00611b64c175917d66c5101c938689e3f30f03a4af69094a7",
+      "test_revision": "cf567e0fb0ad825cefe19dc778b7e647cd7729106b443f7a75eef2c2ef0478e3",
+      "model_id": "463675ab8bdff1a9a345f0df5b853f4495ef1e8945e31df752278b556009da4e",
+      "runner_digest": "sha256:d03e23f1ed38ddfc13a2ab49eca628399f11b9273b2f64e23278aff6f94c14ac",
+      "verdict": "VALIDATED_ON_TESTS",
+      "candidate_verdicts": {
+        "e0f511751cd161def7e6": "VALIDATED_ON_TESTS",
+        "7e1d45ca70068c6d0dce": "REJECTED_REGRESSION",
+        "8c8270727e9e12d59b21": "UNRESOLVED"
+      }
+    },
+    "after": {
+      "fixture": "binary_search",
+      "job_id": "2fa10636aeaf4bc3a673a4f61fd6954d",
+      "wall_seconds": 6.20401804195717,
+      "suite_calls": 7,
+      "executed_cases_requested": 79,
+      "availability_calls": 8,
+      "docker_invocations": 7,
+      "image_inspections": 1,
+      "stages": [
+        {
+          "stage": "queued",
+          "seconds": 0.000954
+        },
+        {
+          "stage": "structure",
+          "seconds": 0.009691
+        },
+        {
+          "stage": "prediction",
+          "seconds": 0.240565
+        },
+        {
+          "stage": "inference",
+          "seconds": 0.050998
+        },
+        {
+          "stage": "execution",
+          "seconds": 1.800734
+        },
+        {
+          "stage": "localization",
+          "seconds": 0.001543
+        },
+        {
+          "stage": "repair",
+          "seconds": 0.015377
+        },
+        {
+          "stage": "validation",
+          "seconds": 4.077553
+        },
+        {
+          "stage": "evidence",
+          "seconds": 0.00401
+        }
+      ],
+      "source_hash": "c840272c2023430d7807a29783b655ac3465fb4793c61fa834627b28b6ce0fc6",
+      "request_hash": "f43af58d0cf839c00611b64c175917d66c5101c938689e3f30f03a4af69094a7",
+      "test_revision": "cf567e0fb0ad825cefe19dc778b7e647cd7729106b443f7a75eef2c2ef0478e3",
+      "model_id": "463675ab8bdff1a9a345f0df5b853f4495ef1e8945e31df752278b556009da4e",
+      "runner_digest": "sha256:d03e23f1ed38ddfc13a2ab49eca628399f11b9273b2f64e23278aff6f94c14ac",
+      "verdict": "VALIDATED_ON_TESTS",
+      "candidate_verdicts": {
+        "e0f511751cd161def7e6": "VALIDATED_ON_TESTS",
+        "7e1d45ca70068c6d0dce": "REJECTED_REGRESSION",
+        "8c8270727e9e12d59b21": "UNRESOLVED"
+      }
+    },
+    "reduction_percent": 23.8,
+    "outcomes_compared_equal": true
+  },
+  {
+    "fixture": "caller_regression",
+    "before": {
+      "fixture": "caller_regression",
+      "job_id": "3e910d590c1a485ba28a0f4c74544682",
+      "wall_seconds": 14.886255624936894,
+      "suite_calls": 10,
+      "executed_cases_requested": 164,
+      "availability_calls": 10,
+      "docker_invocations": 10,
+      "image_inspections": 10,
+      "stages": [
+        {
+          "stage": "queued",
+          "seconds": 0.00128
+        },
+        {
+          "stage": "structure",
+          "seconds": 0.010602
+        },
+        {
+          "stage": "prediction",
+          "seconds": 0.077654
+        },
+        {
+          "stage": "inference",
+          "seconds": 0.006495
+        },
+        {
+          "stage": "execution",
+          "seconds": 3.433727
+        },
+        {
+          "stage": "localization",
+          "seconds": 0.002147
+        },
+        {
+          "stage": "repair",
+          "seconds": 0.00823
+        },
+        {
+          "stage": "validation",
+          "seconds": 11.337581
+        },
+        {
+          "stage": "evidence",
+          "seconds": 0.00502
+        }
+      ],
+      "source_hash": "d914eff11b5c355044408f939ad72ca1a117db6f138d61dd20747835e9454211",
+      "request_hash": "5783f1415e11251aaa13f1e26e0f252a1397bcefaea3213d254902fe91fe4331",
+      "test_revision": "42df7eb1e06187c44045e4c4a8a31526cf82c84bd35c8872abdb5540689701f1",
+      "model_id": "463675ab8bdff1a9a345f0df5b853f4495ef1e8945e31df752278b556009da4e",
+      "runner_digest": "sha256:d03e23f1ed38ddfc13a2ab49eca628399f11b9273b2f64e23278aff6f94c14ac",
+      "verdict": "VALIDATED_ON_TESTS",
+      "candidate_verdicts": {
+        "f7ee2ca576d78106d059": "REJECTED_REGRESSION",
+        "c74c9ec47c6351c8130d": "VALIDATED_ON_TESTS",
+        "1aa1687bb1a18f8729e3": "UNRESOLVED",
+        "563d928a38fc068fb936": "REJECTED_REGRESSION"
+      }
+    },
+    "after": {
+      "fixture": "caller_regression",
+      "job_id": "48e891c53bf04538b7bad49338380453",
+      "wall_seconds": 9.185667874990031,
+      "suite_calls": 10,
+      "executed_cases_requested": 164,
+      "availability_calls": 11,
+      "docker_invocations": 10,
+      "image_inspections": 1,
+      "stages": [
+        {
+          "stage": "queued",
+          "seconds": 0.001513
+        },
+        {
+          "stage": "structure",
+          "seconds": 0.01005
+        },
+        {
+          "stage": "prediction",
+          "seconds": 0.049271
+        },
+        {
+          "stage": "inference",
+          "seconds": 0.005865
+        },
+        {
+          "stage": "execution",
+          "seconds": 3.450943
+        },
+        {
+          "stage": "localization",
+          "seconds": 0.002157
+        },
+        {
+          "stage": "repair",
+          "seconds": 0.010878
+        },
+        {
+          "stage": "validation",
+          "seconds": 5.647123
+        },
+        {
+          "stage": "evidence",
+          "seconds": 0.004464
+        }
+      ],
+      "source_hash": "d914eff11b5c355044408f939ad72ca1a117db6f138d61dd20747835e9454211",
+      "request_hash": "5783f1415e11251aaa13f1e26e0f252a1397bcefaea3213d254902fe91fe4331",
+      "test_revision": "42df7eb1e06187c44045e4c4a8a31526cf82c84bd35c8872abdb5540689701f1",
+      "model_id": "463675ab8bdff1a9a345f0df5b853f4495ef1e8945e31df752278b556009da4e",
+      "runner_digest": "sha256:d03e23f1ed38ddfc13a2ab49eca628399f11b9273b2f64e23278aff6f94c14ac",
+      "verdict": "VALIDATED_ON_TESTS",
+      "candidate_verdicts": {
+        "f7ee2ca576d78106d059": "REJECTED_REGRESSION",
+        "c74c9ec47c6351c8130d": "VALIDATED_ON_TESTS",
+        "1aa1687bb1a18f8729e3": "UNRESOLVED",
+        "563d928a38fc068fb936": "REJECTED_REGRESSION"
+      }
+    },
+    "reduction_percent": 38.3,
+    "outcomes_compared_equal": true
+  },
+  {
+    "fixture": "ledger_reconciler",
+    "before": {
+      "fixture": "ledger_reconciler",
+      "job_id": "fc3806210d274fea8530f8e57aa487f3",
+      "wall_seconds": 39.689644041936845,
+      "suite_calls": 15,
+      "executed_cases_requested": 474,
+      "availability_calls": 15,
+      "docker_invocations": 15,
+      "image_inspections": 15,
+      "stages": [
+        {
+          "stage": "queued",
+          "seconds": 0.000936
+        },
+        {
+          "stage": "structure",
+          "seconds": 0.023473
+        },
+        {
+          "stage": "execution",
+          "seconds": 0.273665
+        },
+        {
+          "stage": "prediction",
+          "seconds": 0.101557
+        },
+        {
+          "stage": "inference",
+          "seconds": 0.020539
+        },
+        {
+          "stage": "execution",
+          "seconds": 5.531244
+        },
+        {
+          "stage": "localization",
+          "seconds": 0.013675
+        },
+        {
+          "stage": "repair",
+          "seconds": 0.202115
+        },
+        {
+          "stage": "validation",
+          "seconds": 33.455164
+        },
+        {
+          "stage": "evidence",
+          "seconds": 0.05542
+        }
+      ],
+      "source_hash": "4237d76b353759eb62e7475ba6910ab491e8aec9c49929c72a56d55ff2e07dc6",
+      "request_hash": "2196deeef26e99345e209356ac07389291d7276f63fc5b056235587a58040e83",
+      "test_revision": "06d78c8317cf1d2c7f00dc1b753ada539a38fca59e6118d7457a64a1d5bd5ed1",
+      "model_id": "463675ab8bdff1a9a345f0df5b853f4495ef1e8945e31df752278b556009da4e",
+      "runner_digest": "sha256:d03e23f1ed38ddfc13a2ab49eca628399f11b9273b2f64e23278aff6f94c14ac",
+      "verdict": "VALIDATED_ON_TESTS",
+      "candidate_verdicts": {
+        "ae390d255bec076d2c21": "REJECTED_REGRESSION",
+        "b708835044125ecf5eb5": "UNRESOLVED",
+        "76ebc923dd15cab07783": "REJECTED_REGRESSION",
+        "0a274290790fb56d6303": "REJECTED_REGRESSION",
+        "12d93b6894f7cf736828": "VALIDATED_ON_TESTS",
+        "20320ad276d9f7191f1a": "UNRESOLVED"
+      }
+    },
+    "after": {
+      "fixture": "ledger_reconciler",
+      "job_id": "89cf922e52344f25a277c83a5ce40d4f",
+      "wall_seconds": 22.83948279102333,
+      "suite_calls": 15,
+      "executed_cases_requested": 474,
+      "availability_calls": 16,
+      "docker_invocations": 15,
+      "image_inspections": 2,
+      "stages": [
+        {
+          "stage": "queued",
+          "seconds": 0.000926
+        },
+        {
+          "stage": "structure",
+          "seconds": 0.024157
+        },
+        {
+          "stage": "execution",
+          "seconds": 0.271531
+        },
+        {
+          "stage": "prediction",
+          "seconds": 0.064904
+        },
+        {
+          "stage": "inference",
+          "seconds": 0.020614
+        },
+        {
+          "stage": "execution",
+          "seconds": 5.671853
+        },
+        {
+          "stage": "localization",
+          "seconds": 0.019516
+        },
+        {
+          "stage": "repair",
+          "seconds": 0.201556
+        },
+        {
+          "stage": "validation",
+          "seconds": 16.507389
+        },
+        {
+          "stage": "evidence",
+          "seconds": 0.018998
+        }
+      ],
+      "source_hash": "4237d76b353759eb62e7475ba6910ab491e8aec9c49929c72a56d55ff2e07dc6",
+      "request_hash": "2196deeef26e99345e209356ac07389291d7276f63fc5b056235587a58040e83",
+      "test_revision": "06d78c8317cf1d2c7f00dc1b753ada539a38fca59e6118d7457a64a1d5bd5ed1",
+      "model_id": "463675ab8bdff1a9a345f0df5b853f4495ef1e8945e31df752278b556009da4e",
+      "runner_digest": "sha256:d03e23f1ed38ddfc13a2ab49eca628399f11b9273b2f64e23278aff6f94c14ac",
+      "verdict": "VALIDATED_ON_TESTS",
+      "candidate_verdicts": {
+        "ae390d255bec076d2c21": "REJECTED_REGRESSION",
+        "b708835044125ecf5eb5": "UNRESOLVED",
+        "76ebc923dd15cab07783": "REJECTED_REGRESSION",
+        "0a274290790fb56d6303": "REJECTED_REGRESSION",
+        "12d93b6894f7cf736828": "VALIDATED_ON_TESTS",
+        "20320ad276d9f7191f1a": "UNRESOLVED"
+      }
+    },
+    "reduction_percent": 42.5,
+    "outcomes_compared_equal": true
+  }
+]

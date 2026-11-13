@@ -172,4 +172,5 @@ def test_buggy_ledger_validates_boundary_fix_and_rejects_caller_trap(client):
     impact = report["intelligence"]["blast_radius"]["candidates"][trap["id"]]
     assert "is_known_account" in impact["affected_functions"] and impact["caller_regression_ids"]
     assert report["script_result"]["status"] == "ERROR"
-    assert report["structure"]["minimal_witness"]["minimal_args"] == [[]]
+    assert "minimal_witness" not in report["structure"]
+    assert report["intelligence"]["witness"]["status"] == "NOT_RUN"

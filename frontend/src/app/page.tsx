@@ -48,6 +48,7 @@ const ContractInvestigation = dynamic(
   () => import("@/components/contract-investigation"),
 );
 const GithubImport = dynamic(() => import("@/components/github-import"));
+const StageClock = dynamic(() => import("@/components/stage-clock"));
 const ModelLab = dynamic(() => import("@/components/model-lab"));
 const HistoricalRerun = dynamic(() => import("@/components/historical-rerun"));
 const Experiment = dynamic(() => import("@/components/intelligence-panel"));
@@ -640,6 +641,7 @@ export default function Workbench() {
                 );
               })}
             </div>
+            <StageClock events={a.events} busy={a.busy} />
             <div className="workspace-split" ref={editorTop}>
               <section
                 className={`panel editor-shell ${fullscreen ? "editor-fullscreen" : ""}`}

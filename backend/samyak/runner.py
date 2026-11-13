@@ -5,7 +5,19 @@ import subprocess
 import tempfile
 import time
 from uuid import uuid4
+from contextvars import ContextVar
+from threading import Lock
 from .contracts import Execution
+
+RUN_METRICS = ContextVar("run_metrics", default=None)
+_METRICS_LOCK = Lock()
+
+
+def count(key, amount=1):
+    stats = RUN_METRICS.get()
+    if stats is not None:
+        with _METRICS_LOCK:
+            stats[key] = stats.get(key, 0) + amount
 
 
 class DockerRunner:
@@ -16,6 +28,7 @@ class DockerRunner:
         # Docker Desktop's containerd store can list short tags but require canonical inspect names.
         if "/" not in self.image and not self.image.startswith("sha256:"):
             self.image = "docker.io/library/" + self.image
+        self._verified = False
         self.manifest = {
             "status": "EXECUTION_UNAVAILABLE",
             "isolation": "Docker-only development-grade",
@@ -28,6 +41,9 @@ class DockerRunner:
     def available(self):
         if not shutil.which("docker"):
             return False
+        if self._verified:
+            return True
+        count("image_inspections")
         try:
             p = subprocess.run(
                 ["docker", "image", "inspect", self.image, "--format", "{{.Id}}"],
@@ -36,6 +52,7 @@ class DockerRunner:
                 timeout=5,
             )
             if p.returncode == 0 and p.stdout.strip().startswith("sha256:"):
+                self._verified = True
                 self.manifest.update(status="AVAILABLE", digest=p.stdout.strip())
                 return True
         except (OSError, subprocess.TimeoutExpired):
@@ -75,6 +92,8 @@ class DockerRunner:
     def run(self, source, tests):
         if not tests:
             return []
+        count("suite_requests")
+        count("cases_requested", len(tests))
         if not self.available():
             return [
                 Execution(
@@ -108,6 +127,7 @@ class DockerRunner:
                 proc = subprocess.Popen(
                     self.command(name), stdin=subprocess.PIPE, stdout=output, stderr=errors
                 )
+                count("docker_invocations")
                 proc.stdin.write(payload)
                 proc.stdin.close()
                 exceeded = False
@@ -129,6 +149,7 @@ class DockerRunner:
                 values = json.loads(output.read(1048576))
                 if len(values) != len(tests):
                     raise ValueError("Incomplete execution ledger")
+                count("observed_cases", len(values))
                 results = []
                 for t, value in zip(tests, values):
                     allowed = {k: v for k, v in value.items() if k in Execution.model_fields}

@@ -24,17 +24,10 @@ export default function ModelLab({
 }) {
   const [selected, setSelected] = useState("");
   const fn =
-    report.functions.find((f) => f.name === selected) || report.functions[0];
+    report.functions.find((f) => f.name === selected) ||
+    [...report.functions].sort((a, b) => (b.risk ?? -1) - (a.risk ?? -1))[0];
   const novelty = report.intelligence.novelty as
     | { status?: string; abstain?: boolean; reason?: string }
-    | undefined;
-  const metrics = report.model.metrics as
-    | {
-        test?: Record<
-          string,
-          { rf?: { n: number; f1: number }; xgb?: { n: number; f1: number } }
-        >;
-      }
     | undefined;
   const can = (action: string) =>
     Array.isArray(report.intelligence.actions) &&
@@ -47,159 +40,140 @@ export default function ModelLab({
   return (
     <div className="model-lab-stack">
       <section className="panel panel-body">
-        <h2>This analysis</h2>
+        <div className="lab-evidence-heading">
+          <h2>Model Performance</h2>
+          <span className="label">Held-out evaluation</span>
+        </div>
+        <ModelMetrics report={report} />
+      </section>
+      <section className="panel panel-body">
+        <h2>Code Intelligence</h2>
+        <p className="intro-copy">
+          {report.functions.length} analyzed functions · estimates are not
+          defect certainty.
+        </p>
         {fn ? (
           <>
-            <label className="model-function">
-              Selected function{" "}
-              <select
-                aria-label="Model function"
-                value={fn.name}
-                onChange={(e) => setSelected(e.target.value)}
-              >
-                {report.functions.map((f) => (
-                  <option key={`${f.name}:${f.span.start_line}`} value={f.name}>
-                    {f.name} · L{f.span.start_line}
-                  </option>
+            <div className="function-risk-list">
+              {[...report.functions]
+                .sort((a, b) => (b.risk ?? -1) - (a.risk ?? -1))
+                .map((f) => (
+                  <button
+                    key={`${f.name}:${f.span.start_line}`}
+                    aria-pressed={fn === f}
+                    onClick={() => setSelected(f.name)}
+                  >
+                    <code>
+                      {f.name} · L{f.span.start_line}
+                    </code>
+                    <span className="metric-track">
+                      <i style={{ width: `${(f.risk || 0) * 100}%` }} />
+                    </span>
+                    <strong>{riskLabel(f.risk)}</strong>
+                  </button>
                 ))}
-              </select>
-            </label>
-            <div className="model-analysis-summary">
-              <div>
-                <span className="label">ML risk estimate</span>
-                <strong>{riskLabel(fn.risk)}</strong>
-              </div>
-              <div>
-                <span className="label">Predicted family</span>
-                <strong>{fn.family || "Unavailable"}</strong>
-              </div>
-              <div>
-                <span className="label">Novelty / abstention</span>
-                <strong>
-                  {novelty?.abstain
-                    ? "Abstaining on ML certainty"
-                    : novelty?.status || "Unavailable"}
-                </strong>
-              </div>
             </div>
-            <p className="intro-copy">
-              Function AST features and train-fitted source TF-IDF inform the
-              learned estimate. Static rules and coverage contribute separately
-              to localization. Risk is not defect certainty; no per-feature
-              model attribution is recorded.
-            </p>
-            <p className="intro-copy">
-              Observed model inputs:{" "}
-              {Object.entries(fn.features)
-                .filter(([key]) =>
-                  ["lines", "branches", "calls", "parameters"].includes(key),
-                )
-                .map(([key, value]) => `${key}: ${value}`)
-                .join(" · ") || "Unavailable"}
-              .
-            </p>
-            {novelty?.reason ? (
-              <p className="intro-copy">{novelty.reason}</p>
-            ) : null}
-            <div className="flex-row">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  onSource(
-                    report.findings.find((f) => f.function === fn.name)?.span
-                      .start_line || fn.span.start_line,
+            <div className="compact-function-detail">
+              <label>
+                Selected function{" "}
+                <select
+                  aria-label="Model function"
+                  value={fn.name}
+                  onChange={(e) => setSelected(e.target.value)}
+                >
+                  {report.functions.map((f) => (
+                    <option
+                      key={`${f.name}:${f.span.start_line}`}
+                      value={f.name}
+                    >
+                      {f.name} · L{f.span.start_line}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p>
+                Risk estimate: {riskLabel(fn.risk)} · source L
+                {fn.span.start_line}–{fn.span.end_line}
+              </p>
+              <p className="metric-footnote">
+                Observed AST inputs:{" "}
+                {Object.entries(fn.features)
+                  .filter(([k]) =>
+                    [
+                      "lines",
+                      "calls",
+                      "branches",
+                      "parameters",
+                      "complexity",
+                    ].includes(k),
                   )
-                }
-              >
-                Inspect in Workbench
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  onAtlas(
-                    (report.localization.find((r) => r.function === fn.name)
-                      ?.line as number) || fn.span.start_line,
-                  )
-                }
-              >
-                Explore in Fault Atlas
-              </Button>
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join(" · ")}
+                . Learned prediction uses AST features and train-fitted TF-IDF;
+                no causal feature attribution is recorded.
+              </p>
+              <div className="flex-row">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onSource(
+                      report.findings.find((f) => f.function === fn.name)?.span
+                        .start_line || fn.span.start_line,
+                    )
+                  }
+                >
+                  Inspect in Workbench
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    onAtlas(
+                      Number(
+                        report.localization.find((r) => r.function === fn.name)
+                          ?.line,
+                      ) || fn.span.start_line,
+                    )
+                  }
+                >
+                  Explore in Fault Atlas
+                </Button>
+              </div>
+              <details className="lab-disclosure">
+                <summary>Prediction diagnostics & static findings</summary>
+                <p>
+                  Predicted family: {fn.family || "Unavailable"} · novelty:{" "}
+                  {novelty?.status || "Unavailable"} · abstention:{" "}
+                  {novelty?.abstain == null
+                    ? "Unavailable"
+                    : String(novelty.abstain)}
+                </p>
+                <p>{novelty?.reason}</p>
+                <p className="intro-copy">
+                  Static rules are independent hypotheses, not learned
+                  probabilities.
+                </p>
+                {report.findings
+                  .filter((f) => f.function === fn.name)
+                  .map((f) => (
+                    <button
+                      className="trace-link"
+                      key={f.id}
+                      onClick={() => onSource(f.span.start_line)}
+                    >
+                      L{f.span.start_line} · {f.rule_id} · {f.evidence}
+                    </button>
+                  ))}
+              </details>
             </div>
           </>
         ) : (
           <p className="intro-copy">
-            ML risk: Not applicable to script-only source. Script execution and
-            static evidence remain available in Workbench.
+            ML risk: Not applicable to script-only source. Execution and static
+            evidence remain available in Workbench.
           </p>
         )}
-      </section>
-      <section className="panel panel-body">
-        <h2>Model reliability</h2>
-        <p className="intro-copy">
-          Small held-out cohorts. No measured ML localization uplift.
-        </p>
-        {metrics?.test ? (
-          <div className="table-scroll">
-            <table aria-label="Held-out comparison">
-              <thead>
-                <tr>
-                  <th>Untouched cohort</th>
-                  <th>RF · n / F1</th>
-                  <th>XGBoost · n / F1</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(metrics.test).map(([name, c]) => (
-                  <tr key={name}>
-                    <td>{name.replaceAll("_", " ")}</td>
-                    <td>
-                      {c.rf
-                        ? `${c.rf.n} / ${c.rf.f1.toFixed(3)}`
-                        : "Unavailable"}
-                    </td>
-                    <td>
-                      {c.xgb
-                        ? `${c.xgb.n} / ${c.xgb.f1.toFixed(3)}`
-                        : "Unavailable"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="intro-copy">
-            Model evaluation is unavailable for this report.
-          </p>
-        )}
-        <details className="lab-disclosure">
-          <summary>Evaluation details</summary>
-          <p className="intro-copy">
-            Calibration: {String(report.model.calibration || "Unavailable")}
-          </p>
-          {metrics?.test ? (
-            <ModelMetrics report={report} />
-          ) : (
-            <p className="intro-copy">
-              RF/XGBoost evaluation artifacts were not included.
-            </p>
-          )}
-          <details>
-            <summary>Full cohort manifest and metrics</summary>
-            <pre className="compact-json">
-              {JSON.stringify(
-                {
-                  metrics: report.model.metrics,
-                  cohorts: report.model.cohorts,
-                },
-                null,
-                2,
-              )}
-            </pre>
-          </details>
-        </details>
       </section>
       <section className="panel panel-body">
         <div className="lab-evidence-heading">

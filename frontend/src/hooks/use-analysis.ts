@@ -35,6 +35,8 @@ export function useAnalysis() {
   const active = useRef<string | null>(null);
   const lastEvent = useRef(0);
   const restoreStarted = useRef(false);
+  const lastSignal = useRef(0);
+  const finishing = useRef<string | null>(null);
   const sourceRef = useRef("");
   const sourceTouched = useRef(false);
   const restoringPending = useRef(false);
@@ -46,6 +48,8 @@ export function useAnalysis() {
   }, []);
   const finish = useCallback(
     async (id: string) => {
+      if (finishing.current === id) return;
+      finishing.current = id;
       try {
         const current = await api<Job>(`/v1/analyses/${id}`);
         if (active.current !== id) return;
@@ -72,6 +76,7 @@ export function useAnalysis() {
           setConnection("error");
         }
       } finally {
+        if (finishing.current === id) finishing.current = null;
         if (active.current === id) setBusy(false);
       }
     },
@@ -81,6 +86,7 @@ export function useAnalysis() {
     async (next: Job, resume = false) => {
       stream.current?.close();
       active.current = next.id;
+      lastSignal.current = Date.now();
       setJob(next);
       setBusy(true);
       setError("");
@@ -108,6 +114,7 @@ export function useAnalysis() {
         if (active.current !== next.id) return;
         const ev = JSON.parse((e as MessageEvent).data) as PipelineEvent;
         if (ev.id <= lastEvent.current) return;
+        lastSignal.current = Date.now();
         lastEvent.current = ev.id;
         setEvents((old) =>
           old.some((v) => v.id === ev.id) ? old : [...old, ev],
@@ -140,6 +147,54 @@ export function useAnalysis() {
     },
     [finish],
   );
+  useEffect(() => {
+    if (!busy) return;
+    let cancelled = false;
+    let polling = false;
+    const timer = setInterval(async () => {
+      const id = active.current;
+      if (!id || polling || Date.now() - lastSignal.current < 15000) return;
+      polling = true;
+      lastSignal.current = Date.now();
+      try {
+        const current = await api<Job>(`/v1/analyses/${id}`);
+        if (cancelled || active.current !== id) return;
+        if (["COMPLETED", "FAILED"].includes(current.status)) {
+          stream.current?.close();
+          await finish(id);
+        } else {
+          const timeline = await api<PipelineEvent[]>(
+            `/v1/analyses/${id}/timeline`,
+          );
+          if (cancelled || active.current !== id) return;
+          setJob((old) =>
+            old &&
+            old.id === id &&
+            Date.parse(old.updated_at) > Date.parse(current.updated_at)
+              ? old
+              : current,
+          );
+          setEvents((old) =>
+            Array.from(
+              new Map([...old, ...timeline].map((e) => [e.id, e])).values(),
+            ).sort((a, b) => a.id - b.id),
+          );
+          lastEvent.current = Math.max(
+            lastEvent.current,
+            ...timeline.map((e) => e.id),
+          );
+        }
+      } catch {
+        if (!cancelled && active.current === id) setConnection("reconnecting");
+      } finally {
+        polling = false;
+      }
+    }, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [busy, finish]);
   useEffect(() => {
     if (restoreStarted.current) return () => stream.current?.close();
     restoreStarted.current = true;

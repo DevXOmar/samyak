@@ -1,177 +1,223 @@
-import { Badge } from "./ui/badge";
+"use client";
+import { useState } from "react";
 import type { Report } from "@/lib/client";
-type Binary = {
+export type MetricRow = {
   n: number;
   pr_auc: number | null;
   roc_auc: number | null;
-  f1: number;
+  f1: number | null;
 };
-type Family = {
-  confusion_matrix: number[][];
-  report: Record<string, { "f1-score"?: number; support?: number } | number>;
-  abstain_rate: number;
-  excluded_unsupported: number;
+type Cohort = {
+  rf?: MetricRow;
+  xgb?: MetricRow;
+  xgb_family?: {
+    confusion_matrix: number[][];
+    abstain_rate: number;
+    excluded_unsupported: number;
+  };
 };
-type Cohort = { rf?: Binary; xgb?: Binary; xgb_family?: Family };
-const short = (name: string) =>
-  name
-    .split("_")
-    .map((s) => s[0])
-    .join("");
+type Ablation = {
+  n: number;
+  top1: number | null;
+  top3: number | null;
+  mrr: number | null;
+};
+export function metricText(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toFixed(3)
+    : "N/A";
+}
+export function metricWidth(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.min(1, value)) * 100
+    : 0;
+}
 export default function ModelMetrics({ report }: { report: Report }) {
   const metrics = report.model.metrics as
     | {
         test?: Record<string, Cohort>;
-        localization_ablation?: Record<
-          string,
-          Record<
-            string,
-            {
-              n: number;
-              top1: number | null;
-              top3: number | null;
-              mrr: number | null;
-            }
-          >
-        >;
+        localization_ablation?: Record<string, Record<string, Ablation>>;
       }
     | undefined;
-  const families = Array.isArray(report.model.families)
-    ? (report.model.families as string[])
-    : [];
-  if (!metrics?.test)
+  const names = Object.keys(metrics?.test || {});
+  const [selection, setSelection] = useState("");
+  const selected = names.includes(selection) ? selection : names[0];
+  const cohort = metrics?.test?.[selected];
+  const arms = metrics?.localization_ablation?.[selected] || {};
+  const labels = report.model.families as string[] | undefined;
+  const matrix = cohort?.xgb_family?.confusion_matrix;
+  const max = Math.max(1, ...(matrix || []).flat());
+  if (!cohort)
     return (
-      <p className="muted text-xs mt-4">
+      <p className="intro-copy">
         Model evaluation is unavailable for this report.
       </p>
     );
   return (
     <>
-      <div className="table-scroll mt-4">
-        <table>
-          <thead>
-            <tr>
-              <th>Untouched cohort / head</th>
-              <th>n</th>
-              <th>PR-AUC</th>
-              <th>ROC-AUC</th>
-              <th>F1</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(metrics.test).flatMap(([name, cohort]) =>
-              (["rf", "xgb"] as const).map((head) => {
-                const row = cohort[head];
-                return row ? (
-                  <tr key={name + head}>
-                    <td>
-                      {name.replaceAll("_", " ")}
-                      <span className="label ml-2">{head.toUpperCase()}</span>
-                    </td>
-                    <td>{row.n}</td>
-                    <td>{row.pr_auc?.toFixed(3) ?? "Unavailable"}</td>
-                    <td>{row.roc_auc?.toFixed(3) ?? "Unavailable"}</td>
-                    <td>{row.f1.toFixed(3)}</td>
-                  </tr>
-                ) : null;
-              }),
-            )}
-          </tbody>
-        </table>
+      <div className="metric-cohort">
+        <label>
+          Held-out cohort{" "}
+          <select
+            aria-label="Evaluation cohort"
+            value={selected}
+            onChange={(e) => setSelection(e.target.value)}
+          >
+            {names.map((n) => (
+              <option key={n} value={n}>
+                {n === "REAL_BUGSINPY"
+                  ? "BugsInPy"
+                  : n === "SYNTHETIC_ALGORITHM"
+                    ? "Algorithmic"
+                    : n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="muted">
+          RF n={cohort.rf?.n ?? "N/A"} · XGBoost n={cohort.xgb?.n ?? "N/A"} ·
+          separate untouched cohorts
+        </span>
       </div>
-      <details className="mt-5">
-        <summary>ML on / off localization ablation · measured holdout</summary>
-        <div className="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Cohort / arm</th>
-                <th>n</th>
-                <th>Top-1</th>
-                <th>Top-3</th>
-                <th>MRR</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(metrics.localization_ablation || {}).flatMap(
-                ([domain, arms]) =>
-                  Object.entries(arms).map(([arm, row]) => (
-                    <tr key={domain + arm}>
-                      <td>
-                        <span className="label">
-                          {domain.replaceAll("_", " ")}
-                        </span>
-                        <p className="mono text-[10px] mt-1">{arm}</p>
-                      </td>
-                      <td>{row.n}</td>
-                      <td>{row.top1?.toFixed(3) ?? "Unavailable"}</td>
-                      <td>{row.top3?.toFixed(3) ?? "Unavailable"}</td>
-                      <td>{row.mrr?.toFixed(3) ?? "Unavailable"}</td>
-                    </tr>
-                  )),
-              )}
-            </tbody>
-          </table>
-        </div>
-        <p className="muted text-[10px] mt-3">
-          Identical ranker signals and candidate budget, toggling learned
-          priors. The current frozen cohort shows no uplift.
-        </p>
-      </details>
-      <details className="mt-5">
-        <summary>Defect-family confusion matrices</summary>
-        {Object.entries(metrics.test).map(([domain, cohort]) =>
-          cohort.xgb_family ? (
-            <section key={domain} className="mt-5">
-              <div className="flex-row justify-between">
-                <span className="label">{domain.replaceAll("_", " ")}</span>
-                <Badge>XGBOOST FAMILY HEAD</Badge>
+      <div className="performance-metrics">
+        {(["pr_auc", "roc_auc", "f1"] as const).map((key) => (
+          <section key={key} aria-label={key}>
+            <h3>
+              {key === "pr_auc"
+                ? "PR-AUC"
+                : key === "roc_auc"
+                  ? "ROC-AUC"
+                  : "F1"}
+            </h3>
+            {(["rf", "xgb"] as const).map((head) => (
+              <div className={`comparison-bar ${head}`} key={head}>
+                <span>{head === "rf" ? "RF" : "XGBoost"}</span>
+                <div className="metric-track">
+                  <i
+                    style={{ width: `${metricWidth(cohort[head]?.[key])}%` }}
+                  />
+                </div>
+                <strong>{metricText(cohort[head]?.[key])}</strong>
               </div>
-              <p className="muted text-[10px] mt-2">
-                Rows: true labels. Columns: predicted labels. Excluded
-                unsupported rows: {cohort.xgb_family.excluded_unsupported}.
-                Abstention: {(cohort.xgb_family.abstain_rate * 100).toFixed(1)}
-                %.
-              </p>
-              <div className="table-scroll mt-3">
-                <table
-                  className="matrix"
-                  aria-label={`${domain} family confusion matrix`}
-                >
-                  <thead>
-                    <tr>
-                      <th>True ↓ / predicted →</th>
-                      {families.map((name) => (
-                        <th key={name} title={name}>
-                          {short(name)}
+            ))}
+          </section>
+        ))}
+      </div>
+      <p className="metric-footnote">
+        Held-out evaluation, not confidence in this submission. Small cohorts;
+        N/A means the metric is undefined or absent. No measured ML localization
+        uplift.
+      </p>
+      <details className="lab-disclosure" open>
+        <summary>Localization · ML off / on</summary>
+        {Object.keys(arms).length ? (
+          <div className="table-scroll">
+            <table aria-label="Localization ablation">
+              <thead>
+                <tr>
+                  <th>Arm / evaluated n</th>
+                  <th>Top-1</th>
+                  <th>Top-3</th>
+                  <th>MRR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(arms).map(([name, row]) => (
+                  <tr key={name}>
+                    <th>
+                      {name.replaceAll("_", " ")} · n={row.n}
+                    </th>
+                    {(["top1", "top3", "mrr"] as const).map((key) => (
+                      <td key={key}>
+                        <div className="ablation-cell">
+                          <span className="metric-track">
+                            <i style={{ width: `${metricWidth(row[key])}%` }} />
+                          </span>
+                          <code>{metricText(row[key])}</code>
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="intro-copy">
+            No localization evaluation recorded for this cohort.
+          </p>
+        )}
+      </details>
+      <details className="lab-disclosure" open>
+        <summary>Defect-family confusion matrix</summary>
+        {matrix ? (
+          <>
+            <p className="metric-footnote">
+              Counts · true labels down, predicted labels across. Hover cells
+              for full labels. Excluded unsupported rows:{" "}
+              {cohort.xgb_family?.excluded_unsupported ?? "N/A"}; abstention:{" "}
+              {metricText(cohort.xgb_family?.abstain_rate)}.
+            </p>
+            <div className="table-scroll">
+              <table
+                className="confusion-heatmap"
+                aria-label={`${selected} family confusion matrix`}
+              >
+                <thead>
+                  <tr>
+                    <th>True ↓ / predicted →</th>
+                    {(labels || matrix.map((_, i) => String(i))).map(
+                      (label) => (
+                        <th key={label} title={label}>
+                          {label
+                            .split("_")
+                            .map((s) => s[0])
+                            .join("")}
                         </th>
+                      ),
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrix.map((row, i) => (
+                    <tr key={i}>
+                      <th title={labels?.[i]}>
+                        {(labels?.[i] || String(i)).replaceAll("_", " ")}
+                      </th>
+                      {row.map((n, j) => (
+                        <td
+                          key={j}
+                          title={`${labels?.[i] || i} → ${labels?.[j] || j}: ${n}`}
+                          style={{
+                            background: `color-mix(in srgb, var(--gold) ${(n / max) * 55}%, var(--surface))`,
+                          }}
+                        >
+                          {n}
+                        </td>
                       ))}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {cohort.xgb_family.confusion_matrix.map((row, index) => (
-                      <tr key={index}>
-                        <th title={families[index]}>
-                          {short(families[index] || String(index))}
-                        </th>
-                        {row.map((count, col) => (
-                          <td key={col} className={count ? "nonzero" : "muted"}>
-                            {count}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ) : null,
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <p className="intro-copy">No family confusion matrix recorded.</p>
         )}
-        <p className="hash mt-3">
-          {families
-            .map((f) => `${short(f)} = ${f.replaceAll("_", " ")}`)
-            .join(" · ")}
+      </details>
+      <details className="lab-disclosure">
+        <summary>Evaluation details</summary>
+        <p className="metric-footnote">
+          Calibration: {String(report.model.calibration || "Unavailable")}.
+          Model/index identities are available in Technical provenance.
         </p>
+        <pre className="compact-json">
+          {JSON.stringify(
+            { metrics: report.model.metrics, cohorts: report.model.cohorts },
+            null,
+            2,
+          )}
+        </pre>
       </details>
     </>
   );
