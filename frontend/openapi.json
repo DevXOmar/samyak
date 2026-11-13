@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "SAMYAK Evidence API",
-    "version": "1.1"
+    "version": "1.2"
   },
   "paths": {
     "/health": {
@@ -701,6 +701,21 @@
     "schemas": {
       "AnalysisRequest-Input": {
         "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "ANALYZE",
+              "SCRIPT"
+            ],
+            "title": "Mode",
+            "default": "ANALYZE"
+          },
+          "stdin": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Stdin",
+            "default": ""
+          },
           "source": {
             "type": "string",
             "maxLength": 60000,
@@ -750,6 +765,21 @@
       },
       "AnalysisRequest-Output": {
         "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "ANALYZE",
+              "SCRIPT"
+            ],
+            "title": "Mode",
+            "default": "ANALYZE"
+          },
+          "stdin": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Stdin",
+            "default": ""
+          },
           "source": {
             "type": "string",
             "maxLength": 60000,
@@ -793,6 +823,8 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "mode",
+          "stdin",
           "source",
           "tests",
           "fixture",
@@ -889,7 +921,7 @@
           "contract_version": {
             "type": "string",
             "title": "Contract Version",
-            "default": "1.1"
+            "default": "1.2"
           },
           "runner": {
             "additionalProperties": true,
@@ -1141,6 +1173,51 @@
             "type": "string",
             "title": "Stdout",
             "default": ""
+          },
+          "stderr": {
+            "type": "string",
+            "title": "Stderr",
+            "default": ""
+          },
+          "exit_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exit Code"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "traceback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Traceback"
+          },
+          "fault_lines": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Fault Lines"
           }
         },
         "additionalProperties": false,
@@ -1155,7 +1232,12 @@
           "p95_ms",
           "samples_ms",
           "repeatable",
-          "stdout"
+          "stdout",
+          "stderr",
+          "exit_code",
+          "duration_ms",
+          "traceback",
+          "fault_lines"
         ],
         "title": "Execution"
       },
@@ -1340,7 +1422,7 @@
           "contract_version": {
             "type": "string",
             "title": "Contract Version",
-            "default": "1.1"
+            "default": "1.2"
           },
           "id": {
             "type": "string",
@@ -1461,7 +1543,7 @@
           "contract_version": {
             "type": "string",
             "title": "Contract Version",
-            "default": "1.1"
+            "default": "1.2"
           },
           "job_id": {
             "type": "string",
@@ -1608,6 +1690,16 @@
             "type": "object",
             "title": "Outputs"
           },
+          "script_result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Execution"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "intelligence": {
             "additionalProperties": true,
             "type": "object",
@@ -1640,6 +1732,7 @@
           "verdict",
           "limitations",
           "outputs",
+          "script_result",
           "intelligence"
         ],
         "title": "Report"
@@ -1675,6 +1768,21 @@
       },
       "TestCase-Input": {
         "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "FUNCTION",
+              "SCRIPT"
+            ],
+            "title": "Mode",
+            "default": "FUNCTION"
+          },
+          "stdin": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Stdin",
+            "default": ""
+          },
           "id": {
             "type": "string",
             "title": "Id",
@@ -1813,6 +1921,21 @@
       },
       "TestCase-Output": {
         "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "FUNCTION",
+              "SCRIPT"
+            ],
+            "title": "Mode",
+            "default": "FUNCTION"
+          },
+          "stdin": {
+            "type": "string",
+            "maxLength": 8000,
+            "title": "Stdin",
+            "default": ""
+          },
           "id": {
             "type": "string",
             "title": "Id",
@@ -1945,6 +2068,8 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "mode",
+          "stdin",
           "id",
           "function",
           "args",

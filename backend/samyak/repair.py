@@ -51,7 +51,7 @@ FORBIDDEN = {
 }
 
 
-def safety(source):
+def safety(source, allow_input=False):
     try:
         tree = ast.parse(source)
     except (SyntaxError, ValueError) as exc:
@@ -64,7 +64,9 @@ def safety(source):
         ):
             return "REJECTED_SECURITY", "Import outside the fixed standard-library allowlist"
         if isinstance(node, ast.Name) and (
-            node.id in FORBIDDEN or node.id.startswith("__") and node.id not in {"__name__"}
+            (node.id in FORBIDDEN and not (allow_input and node.id == "input"))
+            or node.id.startswith("__")
+            and node.id not in {"__name__"}
         ):
             return "REJECTED_SECURITY", f"Restricted name: {node.id}"
         if isinstance(node, ast.Attribute) and node.attr.startswith("__"):

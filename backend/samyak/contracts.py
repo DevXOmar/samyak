@@ -2,7 +2,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 import json
 
-VERSION = "1.1"
+VERSION = "1.2"
 Domain = Literal["CONFIRMED", "UNCONFIRMED", "OUT_OF_CONTRACT"]
 Tier = Literal["A", "B", "I", "C"]
 
@@ -12,6 +12,8 @@ class ContractModel(BaseModel):
 
 
 class TestCase(ContractModel):
+    mode: Literal["FUNCTION", "SCRIPT"] = "FUNCTION"
+    stdin: str = Field(default="", max_length=8000)
     id: str = ""
     function: str = Field(pattern=r"^[A-Za-z_]\w*$", max_length=100)
     args: list[Any] = Field(default_factory=list, max_length=12)
@@ -47,6 +49,8 @@ class TestCase(ContractModel):
 
 
 class AnalysisRequest(ContractModel):
+    mode: Literal["ANALYZE", "SCRIPT"] = "ANALYZE"
+    stdin: str = Field(default="", max_length=8000)
     source: str = Field(min_length=1, max_length=60000)
     tests: list[TestCase] = Field(default_factory=list, max_length=64)
     fixture: Literal["binary_search", "average", "caller_regression", "unfamiliar"] | None = None
@@ -117,6 +121,11 @@ class Execution(ContractModel):
     samples_ms: list[float] = Field(default_factory=list)
     repeatable: bool | None = None
     stdout: str = ""
+    stderr: str = ""
+    exit_code: int | None = None
+    duration_ms: float | None = None
+    traceback: str | None = None
+    fault_lines: list[int] = Field(default_factory=list)
 
 
 class Candidate(ContractModel):
@@ -159,6 +168,7 @@ class Report(ContractModel):
     verdict: str = "INCONCLUSIVE_NO_OUTPUT_ORACLE"
     limitations: list[str] = Field(default_factory=list)
     outputs: dict[str, Any] = Field(default_factory=dict)
+    script_result: Execution | None = None
     intelligence: dict[str, Any] = Field(default_factory=dict)
 
 

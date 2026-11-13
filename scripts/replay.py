@@ -14,6 +14,19 @@ if not runner.available() or runner.manifest["digest"] != manifest["runner"]["di
     raise SystemExit("EXECUTION_UNAVAILABLE: exact runner image is required")
 tests = [TestCase.model_validate(t) for t in json.loads((root / "tests.json").read_text())]
 report = json.loads((root / "report.json").read_text())
+if report.get("script_result"):
+    request = json.loads((root / "request.json").read_text())
+    stdin = request.get("analysis", {}).get("stdin", "")
+    observed = runner.run(
+        (root / "original.py").read_text(),
+        [TestCase(id="script", function="__script__", mode="SCRIPT", stdin=stdin)],
+    )[0]
+    old_script = report["script_result"]
+    fields = ["status", "stdout", "stderr", "error", "exit_code", "fault_lines", "lines"]
+    same = all(getattr(observed, k) == old_script.get(k) for k in fields)
+    print("script", "MATCH" if same else "MISMATCH")
+    if not same:
+        raise SystemExit(1)
 for source_path, old in [(root / "original.py", report["original_results"])] + [
     (root / "patches" / (c["id"] + ".py"), c["results"]) for c in report["candidates"] if c["results"]
 ]:

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
-from .contracts import AnalysisRequest, Execution, Report
+from .contracts import AnalysisRequest, Execution, Finding, Report, Span
 from .inference import infer, shrink_fault
 from .ml import ModelService, novelty_evidence, index_identity, edit_priors
 from .repair import OPERATORS, candidates, llm_candidates, make_candidate, safety, validate
@@ -13,6 +13,7 @@ from .ledger import ledger_metadata
 from .twins import semantic_twin
 from .atlas import syntax_tree
 from .structure import analyze, localize
+from .scripts import module_facts, execute_script
 
 
 def scanners(source):
@@ -65,15 +66,130 @@ def run_pipeline(ident, payload, stage, parent=None):
     report = Report(
         job_id=ident, parent_id=parent, source_hash=digest(source), source=source, test_revision="PENDING"
     )
+    report.intelligence["execution"] = {"mode": "FUNCTION_TESTS", "stdin": request.stdin}
     stage("structure", "Parsing AST, tokens, scopes, CFG and lexical dependencies without execution")
     try:
         report.structure, report.functions, report.findings = analyze(source)
     except (SyntaxError, ValueError, RecursionError) as exc:
         report.verdict = "REJECTED_SYNTAX"
-        report.limitations.append(str(exc))
+        report.limitations.append("Python is the supported language. Submit valid Python source. " + str(exc))
+        if isinstance(exc, SyntaxError) and exc.lineno:
+            report.findings.append(
+                Finding(
+                    id="syntax",
+                    rule_id="PYTHON_SYNTAX",
+                    function="<module>",
+                    span=Span(
+                        start_line=exc.lineno,
+                        end_line=exc.lineno,
+                        start_col=max(0, (exc.offset or 1) - 1),
+                        end_col=max(1, exc.offset or 1),
+                    ),
+                    explanation=report.limitations[-1],
+                    strength=1.0,
+                    family="OTHER",
+                    evidence="SYNTAX_ERROR",
+                    qualification="Python is the only supported language; no translation or compilation of other languages",
+                )
+            )
         outputs(report)
         return report
+    module, module_findings = module_facts(source)
+    report.structure["module"] = module
     report.structure["syntax_tree"] = syntax_tree(source)
+    report.structure["graph"]["nodes"].extend(module["nodes"])
+    report.structure["graph"]["edges"].extend(module["edges"])
+    if any(c["target"] == "printf" for c in module["calls"]):
+        report.limitations.append(
+            "Python is the supported language. printf is a C library function, not a Python builtin; no C compilation or translation is performed."
+        )
+    report.findings.extend(module_findings)
+    if request.mode == "SCRIPT" or module["statement_count"]:
+        stage("execution", "Executing Python script as __main__ in restricted Docker")
+        report.script_result, report.runner = execute_script(source, request.stdin)
+        report.intelligence["execution"] = {
+            "mode": "SCRIPT",
+            "stdin": request.stdin,
+            "domain": "UNCONFIRMED",
+            "oracle": None,
+        }
+    if request.mode == "SCRIPT" or not report.functions:
+        model = ModelService()
+        if report.functions:
+            stage("prediction", "Applying unchanged function models; module statements have no learned risk")
+            model.predict(report.functions)
+        report.model = dict(model.meta)
+        report.overall_risk = max((f.risk for f in report.functions if f.risk is not None), default=None)
+        report.model["applicability"] = "FUNCTIONS_ONLY" if report.functions else "NOT_APPLICABLE_SCRIPT_ONLY"
+        if report.script_result is None:
+            report.script_result, report.runner = execute_script(source, request.stdin)
+        result = report.script_result
+        report.verdict = result.status
+        report.severity = "MEDIUM" if report.findings or result.fault_lines else None
+        for line in dict.fromkeys(result.fault_lines):
+            owner = next(
+                (f.name for f in report.functions if f.span.start_line <= line <= f.span.end_line), "<module>"
+            )
+            source_line = source.splitlines()[line - 1] if line <= len(source.splitlines()) else ""
+            report.findings.append(
+                Finding(
+                    id=f"script-runtime:{line}",
+                    rule_id="RUNTIME_EXCEPTION",
+                    function=owner,
+                    span=Span(start_line=line, end_line=line, start_col=0, end_col=len(source_line.encode())),
+                    explanation=result.error or result.status,
+                    evidence="OBSERVED_RUNTIME_FAULT",
+                    strength=1.0,
+                    family="OTHER",
+                    qualification="Observed for this exact stdin. Input domain is unconfirmed; no correctness claim.",
+                )
+            )
+            report.localization.append(
+                {
+                    "line": line,
+                    "function": "<module>",
+                    "score": 1.0,
+                    "signals": {"runtime_fault": True},
+                    "mode": "OBSERVED_RUNTIME_FAULT",
+                }
+            )
+        report.localization.extend(
+            {
+                "line": f.span.start_line,
+                "function": "<module>",
+                "score": f.strength,
+                "signals": {"rule_strength": f.strength, "model_risk": None},
+                "mode": "STATIC_HYPOTHESIS",
+            }
+            for f in module_findings
+            if f.span.start_line not in result.fault_lines
+        )
+        stage(
+            "localization",
+            "Recording static hypotheses and exact observed traceback lines; no assumed input domain",
+        )
+        report.scanners = scanners(source)
+        report.intelligence["execution"] = {
+            "mode": "SCRIPT",
+            "stdin": request.stdin,
+            "domain": "UNCONFIRMED",
+            "oracle": None,
+            "qualification": "A successful process is not proof of correctness",
+        }
+        report.test_revision = digest(request.stdin)
+        report.intelligence["ledger"] = ledger_metadata(report)
+        report.limitations.append(
+            "Script execution is an observation, not a correctness oracle or validated repair. Input domain remains unconfirmed."
+        )
+        outputs(report)
+        report.outputs["M2_DEFECT_PREDICTION"]["status"] = (
+            "AVAILABLE" if report.functions else "NOT_APPLICABLE"
+        )
+        report.outputs["M7_VALIDATION"] = {
+            "status": "NOT_APPLICABLE",
+            "value": {"execution": result.status, "reason": "Script observation has no output oracle"},
+        }
+        return report
     report.intelligence["actions"] = ["replay", "witness", "precedents", "ledger", "twin", "metamorphic"]
     report.intelligence["contract_decisions"] = payload.get("decisions", [])
     report.intelligence["property_confirmations"] = payload.get("property_confirmations", [])

@@ -90,7 +90,15 @@ class DockerRunner:
             {
                 "source": source,
                 "tests": [
-                    {"id": t.id, "function": t.function, "args": t.args, "kwargs": t.kwargs} for t in tests
+                    {
+                        "id": t.id,
+                        "function": t.function,
+                        "args": t.args,
+                        "kwargs": t.kwargs,
+                        "mode": t.mode,
+                        "stdin": t.stdin,
+                    }
+                    for t in tests
                 ],
             }
         ).encode()
@@ -131,6 +139,7 @@ class DockerRunner:
                         if r.repeatable is False:
                             r.status = "FLAKY"
                     elif r.status not in {
+                        "EXECUTED_SUCCESSFULLY",
                         "ERROR",
                         "TIMEOUT",
                         "SANDBOX_ERROR",

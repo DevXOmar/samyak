@@ -299,6 +299,17 @@ export interface components {
     schemas: {
         /** AnalysisRequest */
         "AnalysisRequest-Input": {
+            /**
+             * Mode
+             * @default ANALYZE
+             * @enum {string}
+             */
+            mode: "ANALYZE" | "SCRIPT";
+            /**
+             * Stdin
+             * @default
+             */
+            stdin: string;
             /** Source */
             source: string;
             /** Tests */
@@ -312,6 +323,17 @@ export interface components {
         };
         /** AnalysisRequest */
         "AnalysisRequest-Output": {
+            /**
+             * Mode
+             * @default ANALYZE
+             * @enum {string}
+             */
+            mode: "ANALYZE" | "SCRIPT";
+            /**
+             * Stdin
+             * @default
+             */
+            stdin: string;
             /** Source */
             source: string;
             /** Tests */
@@ -365,7 +387,7 @@ export interface components {
         Capabilities: {
             /**
              * Contract Version
-             * @default 1.1
+             * @default 1.2
              */
             contract_version: string;
             /** Runner */
@@ -462,6 +484,19 @@ export interface components {
              * @default
              */
             stdout: string;
+            /**
+             * Stderr
+             * @default
+             */
+            stderr: string;
+            /** Exit Code */
+            exit_code: number | null;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Traceback */
+            traceback: string | null;
+            /** Fault Lines */
+            fault_lines: number[];
         };
         /** Finding */
         Finding: {
@@ -531,7 +566,7 @@ export interface components {
         Job: {
             /**
              * Contract Version
-             * @default 1.1
+             * @default 1.2
              */
             contract_version: string;
             /** Id */
@@ -573,7 +608,7 @@ export interface components {
         Report: {
             /**
              * Contract Version
-             * @default 1.1
+             * @default 1.2
              */
             contract_version: string;
             /** Job Id */
@@ -639,6 +674,7 @@ export interface components {
             outputs: {
                 [key: string]: unknown;
             };
+            script_result: components["schemas"]["Execution"] | null;
             /** Intelligence */
             intelligence: {
                 [key: string]: unknown;
@@ -657,6 +693,17 @@ export interface components {
         };
         /** TestCase */
         "TestCase-Input": {
+            /**
+             * Mode
+             * @default FUNCTION
+             * @enum {string}
+             */
+            mode: "FUNCTION" | "SCRIPT";
+            /**
+             * Stdin
+             * @default
+             */
+            stdin: string;
             /**
              * Id
              * @default
@@ -714,6 +761,17 @@ export interface components {
         };
         /** TestCase */
         "TestCase-Output": {
+            /**
+             * Mode
+             * @default FUNCTION
+             * @enum {string}
+             */
+            mode: "FUNCTION" | "SCRIPT";
+            /**
+             * Stdin
+             * @default
+             */
+            stdin: string;
             /**
              * Id
              * @default
