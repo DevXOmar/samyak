@@ -13,10 +13,20 @@ def main():
     dest = ROOT / "var"
     dest.mkdir(exist_ok=True)
     with httpx.Client(base_url="http://127.0.0.1:8000", timeout=30) as client:
-        capability = client.get("/v1/capabilities")
-        capability.raise_for_status()
+        try:
+            capability = client.get("/v1/capabilities")
+            capability.raise_for_status()
+        except httpx.HTTPError:
+            raise SystemExit(
+                "API unavailable: run make setup, start Docker, run make runner, then make dev in another terminal; retry make demo-phase2."
+            ) from None
         if capability.json()["runner"]["status"] != "AVAILABLE" or capability.json()["worker"] != "READY":
-            raise SystemExit("EXECUTION_UNAVAILABLE: start Docker, make runner and make dev")
+            raise SystemExit(
+                "Worker/runner unavailable: start Docker, run make runner, and keep make dev running in another terminal; retry make demo-phase2."
+            )
+
+        if capability.json()["model_status"] != "TRAINED":
+            raise SystemExit("Model unavailable: run make train, then retry make demo-phase2.")
 
         def record(label, response):
             response.raise_for_status()

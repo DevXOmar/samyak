@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/hooks/use-theme";
+import { executionReadyToRerun } from "@/lib/readiness";
 import { useCapabilities } from "@/hooks/use-capabilities";
 import { useAnalysis } from "@/hooks/use-analysis";
 import {
@@ -350,6 +351,55 @@ export default function Workbench() {
             )}
           </div>
         </div>
+        <div
+          className="flex-row mb-3 text-[10px] muted"
+          aria-label="Live service health"
+          role="status"
+        >
+          Live services ·{" "}
+          {capabilities.offline
+            ? "API offline"
+            : capabilities.status
+              ? `Runner ${capabilities.status.runner.status} · Worker ${capabilities.status.worker} · Model ${capabilities.status.model_status}`
+              : "Checking…"}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void capabilities.check()}
+          >
+            Recheck
+          </Button>
+        </div>
+        {report && report.functions.length === 0 ? (
+          <div className="notice">
+            No analyzable Python functions. Define a Python function to obtain
+            function risk, generated inputs and repair evidence. Module-level
+            statements such as print calls have no function risk score.
+          </div>
+        ) : null}
+        {executionReadyToRerun(
+          report?.runner.status,
+          capabilities.status?.runner.status,
+          capabilities.offline,
+        ) &&
+        report &&
+        report.functions.length > 0 ? (
+          <div className="notice">
+            <strong>Execution is ready — rerun analysis</strong>
+            <p>
+              This immutable report records an earlier unavailable runner. Live
+              readiness does not change its historical results.
+            </p>
+            <Button
+              disabled={a.busy}
+              onClick={() =>
+                void a.run(`/v1/analyses/${report.job_id}/tests`, {})
+              }
+            >
+              Rerun analysis
+            </Button>
+          </div>
+        ) : null}
         {capabilities.offline ? (
           <div className="notice error" role="status">
             API is offline. Start the local services, then retry.
@@ -384,7 +434,14 @@ export default function Workbench() {
           <div className="notice error" role="alert">
             <div className="flex-row">
               <span>{a.error}</span>
-              <Button variant="ghost" size="sm" onClick={() => void a.retry()}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  void capabilities.check();
+                  void a.retry();
+                }}
+              >
                 Retry connection
               </Button>
             </div>
@@ -394,7 +451,14 @@ export default function Workbench() {
           <div className="notice" role="status">
             Connection interrupted. Reconnecting to persisted events; the worker
             continues independently.
-            <Button variant="ghost" size="sm" onClick={() => void a.retry()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void capabilities.check();
+                void a.retry();
+              }}
+            >
               Reconnect now
             </Button>
           </div>
@@ -661,10 +725,11 @@ export default function Workbench() {
                     A learned risk is a prediction. Passing recorded tests
                     supports only the tested behavior.
                   </p>
-                  {report?.runner.status === "EXECUTION_UNAVAILABLE" ? (
+                  {report?.runner.status === "EXECUTION_UNAVAILABLE" &&
+                  report.functions.length > 0 ? (
                     <div className="notice mt-3">
-                      Runner unavailable. Static analysis continues; execution
-                      fails closed.
+                      Historical job: execution was unavailable. See live
+                      service health for current readiness.
                     </div>
                   ) : null}
                   <span className="label text-[8px]">

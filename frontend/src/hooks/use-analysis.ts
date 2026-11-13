@@ -47,6 +47,7 @@ export function useAnalysis() {
       ]);
       if (active.current !== id) return;
       setReport(result);
+      window.dispatchEvent(new Event("samyak-analysis-completed"));
       setEvents(timeline);
       if (testsVersion.current === submittedVersion.current)
         setContractDirty(false);

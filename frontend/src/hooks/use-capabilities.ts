@@ -32,9 +32,13 @@ export function useCapabilities() {
         if (active) setOffline(true);
       });
     window.addEventListener("online", check);
+    window.addEventListener("focus", check);
+    window.addEventListener("samyak-analysis-completed", check);
     return () => {
       active = false;
       window.removeEventListener("online", check);
+      window.removeEventListener("focus", check);
+      window.removeEventListener("samyak-analysis-completed", check);
     };
   }, [check]);
   return { status, offline, check };
