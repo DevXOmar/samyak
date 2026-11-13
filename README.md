@@ -1,6 +1,6 @@
 # SAMYAK · Phase 2
 
-An evidence-driven Python defect investigation and repair workbench for Yuktik. The local `ProblemStatement/Samyak_Technical_Blueprint.md` (revision 2.0) and `Hackthon.docx` define the scope. This repository preserves the Phase 1 pipeline, independently trained models and source data, and adds five connected investigation workspaces, four live source fixtures and ten bounded evidence-bearing USPs. Passing recorded tests is not a proof of universal correctness.
+An evidence-driven Python defect investigation and repair workbench for Yuktik. The local `ProblemStatement/Samyak_Technical_Blueprint.md` (revision 2.0) and `Hackthon.docx` define the scope. This repository preserves the Phase 1 pipeline, independently trained models and source data, and adds five connected investigation workspaces, six live source fixtures and ten bounded evidence-bearing USPs. Passing recorded tests is not a proof of universal correctness.
 
 ## Start
 

@@ -9,6 +9,7 @@ export type GraphNode = {
   end_line?: number;
   depth?: number;
   resolved?: boolean;
+  count?: number;
 };
 export type GraphEdge = {
   source: string;
@@ -17,26 +18,32 @@ export type GraphEdge = {
   variable?: string;
   resolved?: boolean;
 };
+// Wide syntax trees use narrower nodes so fitted views stay legible.
+export function nodeSize(compact = false) {
+  return compact ? { width: 150, height: 48 } : { width: 220, height: 64 };
+}
 export function layoutGraph(
   nodes: GraphNode[],
   edges: GraphEdge[],
   horizontal = false,
+  compact = false,
 ) {
+  const { width, height } = nodeSize(compact);
   const graph = new dagre.graphlib.Graph({ multigraph: true })
     .setGraph({
       rankdir: horizontal ? "LR" : "TB",
-      nodesep: 55,
-      ranksep: 85,
+      nodesep: compact ? 22 : 55,
+      ranksep: compact ? 60 : 85,
       marginx: 30,
       marginy: 30,
     })
     .setDefaultEdgeLabel(() => ({}));
-  nodes.forEach((n) => graph.setNode(n.id, { width: 220, height: 64 }));
+  nodes.forEach((n) => graph.setNode(n.id, { width, height }));
   edges.forEach((e, i) => graph.setEdge(e.source, e.target, {}, String(i)));
   dagre.layout(graph);
   return nodes.map((n) => {
     const p = graph.node(n.id);
-    return { ...n, position: { x: p.x - 110, y: p.y - 32 } };
+    return { ...n, position: { x: p.x - width / 2, y: p.y - height / 2 } };
   });
 }
 export const SIGNALS = [

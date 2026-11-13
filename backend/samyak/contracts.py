@@ -53,7 +53,17 @@ class AnalysisRequest(ContractModel):
     stdin: str = Field(default="", max_length=8000)
     source: str = Field(min_length=1, max_length=60000)
     tests: list[TestCase] = Field(default_factory=list, max_length=64)
-    fixture: Literal["binary_search", "average", "caller_regression", "unfamiliar"] | None = None
+    fixture: (
+        Literal[
+            "binary_search",
+            "average",
+            "caller_regression",
+            "unfamiliar",
+            "inventory_planner",
+            "ledger_reconciler",
+        ]
+        | None
+    ) = None
     property_contracts: dict[str, Literal["sorted_multiset"]] = Field(default_factory=dict)
 
     @model_validator(mode="after")

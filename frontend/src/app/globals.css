@@ -295,7 +295,7 @@ p {
 }
 .demo-launcher {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 19px;
 }
@@ -1259,7 +1259,7 @@ td code {
 }
 .atlas-node-label {
   display: block;
-  max-width: 195px;
+  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -23,6 +23,14 @@ export default function PatchDiff({
       keepCurrentModifiedModel
       onMount={(editor) => {
         const models = editor.getModel();
+        // Long sources: bring the first changed hunk into view whenever the diff is recomputed.
+        editor.onDidUpdateDiff(() => {
+          const change = editor.getLineChanges()?.[0];
+          if (change)
+            editor
+              .getModifiedEditor()
+              .revealLineInCenter(Math.max(1, change.modifiedStartLineNumber));
+        });
         editor.onDidDispose(() => {
           queueMicrotask(() => {
             models?.original.dispose();

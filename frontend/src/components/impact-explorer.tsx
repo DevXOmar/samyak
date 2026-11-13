@@ -9,7 +9,7 @@ type Impact = {
   def_use_edges?: unknown[];
   dependent_test_ids?: string[];
   caller_regression_ids?: string[];
-  unresolved_edges?: unknown[];
+  unresolved_edges?: { source: string; target: string }[];
   scope?: string;
 };
 export default function ImpactExplorer({
@@ -29,6 +29,29 @@ export default function ImpactExplorer({
     | { candidates?: Record<string, Impact> }
     | undefined;
   const impact = c ? all?.candidates?.[c.id] : undefined;
+  // Top-level statements (e.g. an `if __name__ == "__main__":` block) are a real caller, not a function.
+  const label = (id: string) => {
+    const name = id.replace("fn:", "");
+    return name === "module" ? "<module> top-level code" : name;
+  };
+  const callEdges = [
+    ...new Map(
+      (impact?.call_edges || []).map((e) => [`${e.source}>${e.target}`, e]),
+    ).values(),
+  ];
+  const graphNodes =
+    (
+      report.structure.graph as
+        | { nodes?: { id: string; target?: string }[] }
+        | undefined
+    )?.nodes || [];
+  const unresolvedTargets = [
+    ...new Set(
+      (impact?.unresolved_edges || []).map(
+        (e) => graphNodes.find((n) => n.id === e.target)?.target || e.target,
+      ),
+    ),
+  ].sort();
   return (
     <section className="panel panel-body" aria-label="Blast radius">
       <h2>Blast radius</h2>
@@ -63,7 +86,12 @@ export default function ImpactExplorer({
             <pre className="compact-json">{c.diff}</pre>
           </details>
           <h3 className="mt-4">Who could be affected</h3>
-          {impact.call_edges?.map((e, i) => {
+          {!callEdges.length ? (
+            <p className="muted">
+              No resolved callers in this source call the edited function.
+            </p>
+          ) : null}
+          {callEdges.map((e, i) => {
             const caller = e.source.replace("fn:", ""),
               callee = e.target.replace("fn:", "");
             return (
@@ -77,7 +105,7 @@ export default function ImpactExplorer({
                     )
                   }
                 >
-                  {callee} → {caller} (
+                  {label(callee)} → {label(caller)} (
                   {callee === impact.edited_function
                     ? "direct caller"
                     : "transitive caller"}
@@ -87,7 +115,7 @@ export default function ImpactExplorer({
             );
           })}
           <p>
-            {impact.affected_functions?.join(" · ") ||
+            {impact.affected_functions?.map(label).join(" · ") ||
               "No resolved affected functions"}
           </p>
           <details>
@@ -101,8 +129,11 @@ export default function ImpactExplorer({
           </details>
           <h3 className="mt-4">Which tests checked it / what broke</h3>
           <p>
-            {impact.caller_regression_ids?.length || 0} caller regressions
-            observed. None observed does not mean zero risk.
+            {c.checks.filter((x) => x.regression).length} previously passing
+            confirmed tests regressed;{" "}
+            {impact.caller_regression_ids?.length || 0} caller regressions in
+            callers of the edited function. None observed does not mean zero
+            risk.
           </p>
           {impact.dependent_test_ids
             ?.slice()
@@ -175,12 +206,17 @@ export default function ImpactExplorer({
           </p>
           <h3>What is unknown</h3>
           <p>
-            {impact.unresolved_edges?.length || 0} unresolved dynamic edges.
-            Bounded reverse traversal (32 nodes); lexical def-use does not
-            resolve aliasing. Untested paths remain unknown.
+            {impact.unresolved_edges?.length || 0} calls from affected code go
+            to names not defined in this source
+            {unresolvedTargets.length
+              ? ` (${unresolvedTargets.slice(0, 8).join(", ")}${unresolvedTargets.length > 8 ? ", …" : ""})`
+              : ""}
+            ; their behavior is not traced. Bounded reverse traversal (32
+            nodes); lexical def-use does not resolve aliasing. Untested paths
+            remain unknown.
           </p>
           <details>
-            <summary>Unresolved edges</summary>
+            <summary>Unresolved call edges</summary>
             <pre className="compact-json">
               {JSON.stringify(impact.unresolved_edges, null, 2)}
             </pre>

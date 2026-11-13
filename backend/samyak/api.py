@@ -82,7 +82,14 @@ def capabilities():
 
 @app.get("/v1/fixtures/{name}", response_model=AnalysisRequest)
 def get_fixture(name: str):
-    if name not in {"binary_search", "average", "caller_regression", "unfamiliar"}:
+    if name not in {
+        "binary_search",
+        "average",
+        "caller_regression",
+        "unfamiliar",
+        "inventory_planner",
+        "ledger_reconciler",
+    }:
         raise HTTPException(404, "Unknown source fixture")
     return fixture(name)
 
@@ -130,7 +137,7 @@ async def events(ident: str, request: Request, after: int = 0):
     return StreamingResponse(
         stream(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"},
     )
 
 

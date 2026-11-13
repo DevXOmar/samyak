@@ -18,10 +18,12 @@ import {
   Moon,
   Play,
   RotateCcw,
+  Receipt,
   ShieldCheck,
   Sparkles,
   Sun,
   Upload,
+  Warehouse,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -100,7 +102,8 @@ export default function Workbench() {
   const [line, setLine] = useState<number | null>(null);
   const [revealToken, setRevealToken] = useState(0);
   const [cursorLine, setCursorLine] = useState<number | null>(null);
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [allMatrixRows, setAllMatrixRows] = useState(false);
   const [expandedSource, setExpandedSource] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [tab, setTab] = useState("source");
@@ -183,7 +186,7 @@ export default function Workbench() {
   };
   function submitSource(mode: "ANALYZE" | "SCRIPT") {
     if (a.busy || !a.source.trim()) return;
-    setSelected(0);
+    setSelected(null);
     setSuggestion(
       /(^|\n)\s*(async\s+)?def\s+/.test(a.source) ? null : a.source,
     );
@@ -195,8 +198,17 @@ export default function Workbench() {
       mode,
     });
   }
-  const selectedIndex = report?.candidates[selected] ? selected : 0;
-  const candidate = report?.candidates[selected] || report?.candidates[0];
+  // Default to the tournament winner; an explicit click overrides it.
+  const winnerId = (
+    report?.intelligence.tournament as { winner_id?: string } | undefined
+  )?.winner_id;
+  const winnerIndex = Math.max(
+    0,
+    report?.candidates.findIndex((c) => c.id === winnerId) ?? 0,
+  );
+  const selectedIndex =
+    selected != null && report?.candidates[selected] ? selected : winnerIndex;
+  const candidate = report?.candidates[selectedIndex];
   const finding =
     report?.findings.find((f) => f.span.start_line === (cursorLine || line)) ||
     report?.findings[0];
@@ -207,6 +219,22 @@ export default function Workbench() {
     report?.original_results.map((r) => [r.test_id, r]),
   );
   const patched = new Map(candidate?.results.map((r) => [r.test_id, r]));
+  // Regression-first matrix: authoritative or changed outcomes lead; unchanged
+  // exploratory observations stay available behind an explicit toggle.
+  const matrixRank = (t: Report["tests"][number]) => {
+    const before = originals.get(t.id)?.status,
+      after = patched.get(t.id)?.status;
+    if (t.domain === "CONFIRMED" && before === "PASS" && after !== "PASS")
+      return 0;
+    if (before !== after) return 1;
+    return t.domain === "CONFIRMED" ? 2 : 3;
+  };
+  const matrix = (report?.tests || [])
+    .map((t, i) => ({ t, i, rank: matrixRank(t) }))
+    .sort((x, y) => x.rank - y.rank || x.i - y.i);
+  const hiddenMatrixRows = allMatrixRows
+    ? 0
+    : matrix.filter((row) => row.rank === 3).length;
   const confirmation = report?.tests.find((t) => t.id === confirmId);
   const details = report?.intelligence || {};
   const can = (action: string) =>
@@ -224,7 +252,7 @@ export default function Workbench() {
   };
   async function load(name: NonNullable<AnalysisRequest["fixture"]>) {
     setLine(null);
-    setSelected(0);
+    setSelected(null);
     setWorkspace("Workbench");
     await a.load(name);
   }
@@ -556,6 +584,36 @@ export default function Workbench() {
                 </div>
                 <ArrowUpRight size={12} className="muted ml-auto shrink-0" />
               </button>
+              {(
+                [
+                  [
+                    "inventory_planner",
+                    "Inventory planner · correct",
+                    "18 functions, 23 oracles → no patch earns a recommendation",
+                    Warehouse,
+                  ],
+                  [
+                    "ledger_reconciler",
+                    "Ledger reconciler · subtle bugs",
+                    "16 functions → one validated fix, a caller trap, live crashes",
+                    Receipt,
+                  ],
+                ] as const
+              ).map(([name, title, copy, Icon]) => (
+                <button
+                  className="panel demo-card"
+                  disabled={a.busy}
+                  key={name}
+                  onClick={() => void load(name)}
+                >
+                  <Icon className="demo-icon" size={17} strokeWidth={1.5} />
+                  <div>
+                    <strong>{title}</strong>
+                    <span>{copy}</span>
+                  </div>
+                  <ArrowUpRight size={12} className="muted ml-auto shrink-0" />
+                </button>
+              ))}
             </div>
             <div className="panel workflow" aria-live="polite">
               {STAGES.map(([stage, label]) => {
@@ -1382,40 +1440,60 @@ export default function Workbench() {
                           </tr>
                         </thead>
                         <tbody>
-                          {report.tests.map((t) => (
-                            <tr key={t.id}>
-                              <td>
-                                <code>
-                                  {t.function}({JSON.stringify(t.args)})
-                                </code>
-                              </td>
-                              <td>
-                                <Badge
-                                  tone={observationTone(t, originals.get(t.id))}
-                                >
-                                  {observationLabel(t, originals.get(t.id))}
-                                </Badge>
-                                <p className="mono text-[10px] mt-2">
-                                  {observed(originals.get(t.id))}
-                                </p>
-                              </td>
-                              <td>
-                                <Badge
-                                  tone={observationTone(t, patched.get(t.id))}
-                                >
-                                  {observationLabel(t, patched.get(t.id))}
-                                </Badge>
-                                <p className="mono text-[10px] mt-2">
-                                  {observed(patched.get(t.id))}
-                                </p>
-                              </td>
-                              <td className="muted">
-                                {t.tier} / {t.domain}
-                              </td>
-                            </tr>
-                          ))}
+                          {matrix
+                            .filter((row) => allMatrixRows || row.rank < 3)
+                            .map(({ t, rank }) => (
+                              <tr key={t.id}>
+                                <td>
+                                  <code>
+                                    {t.function}({JSON.stringify(t.args)})
+                                  </code>
+                                  {rank === 0 ? (
+                                    <Badge tone="bad">REGRESSION</Badge>
+                                  ) : rank === 1 ? (
+                                    <Badge>CHANGED</Badge>
+                                  ) : null}
+                                </td>
+                                <td>
+                                  <Badge
+                                    tone={observationTone(
+                                      t,
+                                      originals.get(t.id),
+                                    )}
+                                  >
+                                    {observationLabel(t, originals.get(t.id))}
+                                  </Badge>
+                                  <p className="mono text-[10px] mt-2">
+                                    {observed(originals.get(t.id))}
+                                  </p>
+                                </td>
+                                <td>
+                                  <Badge
+                                    tone={observationTone(t, patched.get(t.id))}
+                                  >
+                                    {observationLabel(t, patched.get(t.id))}
+                                  </Badge>
+                                  <p className="mono text-[10px] mt-2">
+                                    {observed(patched.get(t.id))}
+                                  </p>
+                                </td>
+                                <td className="muted">
+                                  {t.tier} / {t.domain}
+                                </td>
+                              </tr>
+                            ))}
                         </tbody>
                       </table>
+                      {hiddenMatrixRows || allMatrixRows ? (
+                        <button
+                          className="chip m-3"
+                          onClick={() => setAllMatrixRows(!allMatrixRows)}
+                        >
+                          {allMatrixRows
+                            ? "Hide unchanged exploratory observations"
+                            : `Show ${hiddenMatrixRows} unchanged exploratory (C-tier, unconfirmed) observations`}
+                        </button>
+                      ) : null}
                     </div>
                   </>
                 ) : (

@@ -4,7 +4,7 @@
 
 Run `make setup`, `make runner`, then `make dev`. Open http://127.0.0.1:3000. `make train` is optional when using the checked-in model; two-phase artifacts and the original model card are retained. Before presenting, run `make demo-phase2` and `cd frontend && npm run test:e2e` against a running Docker daemon. Close old long-running jobs so the single worker is ready.
 
-The four launcher cards load **openly labeled source fixtures** only. Every Analyze action creates a real job via `POST /v1/analyses`. There are no cached demo verdicts. Candidate order and latency can vary; select by actual verdict rather than a rehearsed candidate number. Times below are presentation targets, not measured latency statistics.
+The six launcher cards load **openly labeled source fixtures** only. Every Analyze action creates a real job via `POST /v1/analyses`. There are no cached demo verdicts. Candidate order and latency can vary; select by actual verdict rather than a rehearsed candidate number. Times below are presentation targets, not measured latency statistics.
 
 ## 0:00–0:40 — establish the evidence contract
 
@@ -78,3 +78,10 @@ Finish on the Repair Risk Budget: `AUTO_SUGGEST`, `REVIEW_REQUIRED` or `DO_NOT_R
 **Is the runner safe for public hostile tenants?** It is restricted Docker-only, explicitly development-grade: non-root, no network, read-only root, ephemeral scratch, dropped capabilities, no host mounts/socket/secrets and finite CPU/RAM/PID/time/output budgets. Public multi-tenancy requires independent hardening and is not claimed here.
 
 **Are the ten USPs just panels?** Each row in `USP_EVIDENCE.md` names its backend mechanism, real route/action, observable artifact and passing acceptance test. Unsupported eligibility is explicit; no positive outcome or benchmark uplift is manufactured.
+
+## Optional — long showcase sources
+
+Two larger fixtures exercise every workspace on realistic multi-function modules. Each takes roughly two minutes to analyze because 64 tests run against every candidate.
+
+- **Inventory planner · correct** (18 functions, 23 authored A-oracles, a `__main__` report). All oracles pass and the script runs. Static rules still raise hypotheses, such as the strict `while lo < hi` lower bound and a guarded division. Every candidate is either rejected by a regression or left unverified, so the Risk Budget is all `DO_NOT_RECOMMEND`. The `None`-sentinel caller trap (`find_sku` → `has_sku`) is rejected even on correct code. In Contract Studio, declare a sorting contract for `insertion_sort` and run Shield to see zero violations.
+- **Ledger reconciler · subtle bugs** (16 functions). The inclusive-cutoff boundary in `count_settled_by` fails two authored oracles, and the `<` → `<=` candidate validates. The `find_account` `None→-1` candidate breaks `is_known_account` callers. An empty batch crashes `average_ticket` both in the script run (real traceback) and as a replayed `[]` witness, so you can accept its exact domain. Other bugs show up only as static findings or need a confirmed output in Contract Studio: a self-comparison, a mutable default, a `None` fee path, a dropped final balance, a dropped merge tail, early interest truncation, a numerator-only guard and an off-grace late fee. The full answer key is in `backend/samyak/fixtures.py`.

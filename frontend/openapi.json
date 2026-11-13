@@ -738,7 +738,9 @@
                   "binary_search",
                   "average",
                   "caller_regression",
-                  "unfamiliar"
+                  "unfamiliar",
+                  "inventory_planner",
+                  "ledger_reconciler"
                 ]
               },
               {
@@ -802,7 +804,9 @@
                   "binary_search",
                   "average",
                   "caller_regression",
-                  "unfamiliar"
+                  "unfamiliar",
+                  "inventory_planner",
+                  "ledger_reconciler"
                 ]
               },
               {
