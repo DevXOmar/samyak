@@ -111,3 +111,34 @@ def test_sorting_shield_discovers_actual_property_violation(client):
     assert any(r["relation"] == "permutation_and_multiset" and r["violated"] for r in measured["relations"])
     assert any(r["relation"] == "idempotence" for r in measured["relations"])
     assert all(r["test"]["tier"] == "B" for r in measured["relations"])
+
+
+def test_rejecting_exact_a_expectation_retracts_only_that_oracle(client):
+    base = submit(client, "average")
+    confirmed = complete(
+        client,
+        client.post(
+            f"/v1/analyses/{base['job_id']}/contracts/confirm",
+            json={"function": "average", "args": [[]], "expected": 0, "reviewer": "judge"},
+        ),
+    )
+    authored = next(t for t in confirmed["tests"] if t["tier"] == "A")
+    declined = complete(
+        client,
+        client.post(
+            f"/v1/analyses/{confirmed['job_id']}/contracts/decision",
+            json={"test_id": authored["id"], "expected": 0, "reviewer": "judge"},
+        ),
+    )
+    assert not any(t["tier"] == "A" for t in declined["tests"])
+    assert declined["verdict"] == "INCONCLUSIVE_NO_OUTPUT_ORACLE"
+    assert any(f["evidence"] == "OBSERVED_RUNTIME_FAULT" for f in declined["findings"])
+    reaffirmed = complete(
+        client,
+        client.post(
+            f"/v1/analyses/{declined['job_id']}/contracts/confirm",
+            json={"function": "average", "args": [[]], "expected": 0, "reviewer": "judge"},
+        ),
+    )
+    assert reaffirmed["verdict"] == "VALIDATED_ON_TESTS"
+    assert client.get(f"/v1/analyses/{confirmed['job_id']}/report").json() == confirmed

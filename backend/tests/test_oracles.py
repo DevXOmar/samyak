@@ -85,3 +85,12 @@ def test_shrinking_does_not_transfer_an_exact_confirmed_contract():
     assert witness["domain"] == "UNCONFIRMED"
     assert witness["observation"]["status"] == "ERROR"
     assert runner.calls <= 10
+
+
+def test_unsupported_property_signature_never_confirms_guessed_inputs():
+    info, cases = infer(
+        "def sort_with_key(nums, key):\n    return nums\n",
+        property_contracts={"sort_with_key": "sorted_multiset"},
+    )
+    assert "NOT_SUPPORTED" in info[0]["unsupported"]
+    assert not cases

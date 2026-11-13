@@ -124,6 +124,27 @@ def run_pipeline(ident, payload, stage, parent=None):
         "Inferring inputs from annotations, literal call sites and AST operations; freezing test manifest",
     )
     report.inference, report.tests = infer(source, request.tests, request.property_contracts)
+    for decision in payload.get("decisions", []):
+        for test in report.tests:
+            same_tuple = (test.function, test.args, test.kwargs) == (
+                decision.get("function"),
+                decision.get("args"),
+                decision.get("kwargs"),
+            )
+            same_expected = json.dumps(test.expected, sort_keys=True) == json.dumps(
+                decision.get("expected"), sort_keys=True
+            )
+            later_confirmation = bool(test.confirmed_at and test.confirmed_at > decision.get("timestamp", ""))
+            if (
+                same_tuple
+                and test.tier == "A"
+                and test.has_expected
+                and same_expected
+                and not later_confirmation
+            ):
+                test.tier, test.has_expected, test.expected = "C", False, None
+                test.origin = "RETRACTED_EXACT_EXPECTATION"
+                test.reason = "This exact expected result was rejected in a later immutable contract revision; it cannot certify output behavior"
     report.test_revision = digest(json.dumps([t.model_dump() for t in report.tests], sort_keys=True))
     runner = DockerRunner()
     stage(
@@ -199,7 +220,13 @@ def run_pipeline(ident, payload, stage, parent=None):
             finding.severity, finding.evidence = "HIGH", "FAULT_CONFIRMED"
             finding.qualification = "Confirmed failure on an explicit in-contract oracle; coverage associates this span, not proof of unique root cause"
         elif observations:
-            finding.evidence = "RUNTIME_FAULT_DOMAIN_UNCONFIRMED"
+            accepted_domain = any(
+                t.domain == "CONFIRMED" and r.status == "ERROR" and t.function == finding.function
+                for t, r in zip(report.tests, report.original_results)
+            )
+            finding.evidence = (
+                "OBSERVED_RUNTIME_FAULT" if accepted_domain else "RUNTIME_FAULT_DOMAIN_UNCONFIRMED"
+            )
     severity_order = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}
     report.severity = max(
         (f.severity for f in report.findings), key=lambda s: severity_order[s], default=None

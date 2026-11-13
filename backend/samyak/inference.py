@@ -43,6 +43,20 @@ def infer(source, supplied=(), property_contracts=None):
     info = []
     property_contracts = property_contracts or {}
     for fn in [n for n in tree.body if isinstance(n, ast.FunctionDef)][:6]:
+        if fn.name in property_contracts and (
+            len(fn.args.args) != 1
+            or fn.args.posonlyargs
+            or fn.args.vararg
+            or fn.args.kwarg
+            or fn.args.kwonlyargs
+        ):
+            info.append(
+                {
+                    "function": fn.name,
+                    "unsupported": "NOT_SUPPORTED: sorting contracts require one positional finite list[int] parameter",
+                }
+            )
+            continue
         if fn.args.vararg or fn.args.kwarg or fn.args.kwonlyargs or len(fn.args.args) > 4:
             info.append(
                 {"function": fn.name, "unsupported": "Only up to four positional parameters supported"}

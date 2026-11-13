@@ -233,8 +233,15 @@ def decline_expectation(ident: str, decision: ContractDecision):
     payload = store().request(ident)
     payload.pop("investigation", None)
     payload.pop("base_report_hash", None)
+    selected = next(t for t in previous["tests"] if t["id"] == decision.test_id)
     payload.setdefault("decisions", []).append(
-        {**decision.model_dump(), "timestamp": datetime.now(timezone.utc).isoformat()}
+        {
+            **decision.model_dump(),
+            "function": selected["function"],
+            "args": selected["args"],
+            "kwargs": selected["kwargs"],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
     )
     return store().submit(payload, ident)
 
