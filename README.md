@@ -113,4 +113,4 @@ Browser tests execute real backend jobs rather than mocked verdicts, including c
 
 See [USP evidence inventory](docs/USP_EVIDENCE.md) and [seven-minute judge walkthrough](docs/JUDGE_DEMO.md). No new model accuracy, ML localization uplift, external QuixBugs evaluation or production sandbox security is claimed. Property/twin eligibility is intentionally bounded and unsupported paths are explicit.
 
-See [Phase 1 handoff](docs/PHASE1_HANDOFF.md), [requirement traceability](docs/TRACEABILITY.md) and [model card](data/models/MODEL_CARD.md).
+See [Phase 2 handoff](docs/PHASE2_HANDOFF.md), [Phase 1 handoff](docs/PHASE1_HANDOFF.md), [requirement traceability](docs/TRACEABILITY.md) and [model card](data/models/MODEL_CARD.md).
