@@ -1,135 +1,213 @@
-# SAMYAK · Phase 2
+# SAMYAK
 
-An evidence-driven Python defect investigation and repair workbench for Yuktik. The local `ProblemStatement/Samyak_Technical_Blueprint.md` (revision 2.0) and `Hackthon.docx` define the scope. This repository preserves the Phase 1 pipeline, independently trained models and source data, and adds five connected investigation workspaces, six live source fixtures and ten bounded evidence-bearing USPs. Passing recorded tests is not a proof of universal correctness.
+**A Python code intelligence workbench built around verifiable evidence.**
 
-## Start
+SAMYAK connects structural analysis, independently trained machine learning, generated tests and isolated execution in one investigation workflow. Inspect a suspicious line, reproduce a failure, establish an exact contract, compare repairs and export the evidence behind a decision.
 
-Requires Python 3.11+, Node **22.12+**, npm, Git and Docker Desktop/Engine running in Linux-container mode. Python 3.11 is the runner language. Internet is needed for initial dependency/image installation; normal deterministic analysis is local.
+Use it with a Python script, a function-based program or a single file imported from a public GitHub repository. Analysis results remain immutable; confirmations, experiments and patch validations create new job revisions.
+
+## Quick start
+
+### Requirements
+
+- Python **3.11+**; the default setup command uses `python3.11`.
+- Node.js **22.12+** and npm.
+- Docker Desktop or Docker Engine running Linux containers.
+- Git and an internet connection for initial dependency and image installation.
 
 ```sh
+git clone https://github.com/DevXOmar/samyak.git
+cd samyak
 make setup
 make runner
 make dev
 ```
 
-Open **http://127.0.0.1:3000**. API documentation: **http://127.0.0.1:8000/docs**. `make dev` starts FastAPI, one separate background worker and Next.js; Ctrl-C stops them. The API alone never processes analysis jobs. SQLite WAL metadata, append-only events and SHA-256 artifacts live in ignored `var/`.
+Open **[localhost:3000](http://127.0.0.1:3000)**. Interactive API documentation is at **[localhost:8000/docs](http://127.0.0.1:8000/docs)**.
 
-`make train` retrains from the committed, witnessed source corpus. The checkout also includes trained RF/XGBoost artifacts, so it can analyze before retraining. Training never imports or executes corpus programs. If Docker or the fixed runner image is unavailable, jobs retain static/ML evidence and return **EXECUTION_UNAVAILABLE** for execution; there is no host-interpreter fallback.
+`make dev` starts the API, a separate background worker and the frontend. Keep it running; Ctrl-C stops the stack. Trained models are included, so **retraining is not required** to get started. Deterministic analysis and repair work without an LLM key.
+
+If execution is unavailable, check that Docker is running, run `make runner`, and recheck live service health in the UI. Static and available model evidence remain inspectable; execution fails closed with `EXECUTION_UNAVAILABLE`. There is no host-execution fallback. Historical reports retain their original execution status; rerunning is optional and creates a new job.
+
+## Investigate code
+
+1. **Open source.** Paste Python, upload a file, load a source fixture or use **Import from GitHub**.
+2. **Run or analyze.** Run executes the module as `__main__`. Analyze adds structural evidence and eligible function-level prediction, test generation, localization and repair validation.
+3. **Inspect the evidence.** Follow real pipeline stages, select a finding or graph node, and navigate to its exact source location.
+4. **Resolve uncertainty.** Replay a case, investigate a smaller witness, confirm an exact input domain or provide an exact expected output.
+5. **Compare repairs.** Inspect candidate diffs, original-versus-patched results, affected callers and regression reasons. Download a replayable evidence bundle.
+
+**Keyboard shortcuts:** ⌘/Ctrl+Enter runs source; ⌘/Ctrl+Shift+Enter starts analysis.
+
+### Connected workspaces
+
+| Workspace | What it provides |
+| --- | --- |
+| **Workbench** | Resizable Monaco editor, file/test tabs, diagnostic markers, evidence rail, fullscreen editing and a read-only Output / Problems / Execution Trace panel. |
+| **Fault Atlas** | Scoped AST, call, control-flow and def-use graphs; explainable ranked source spans; exact-line source inspection and candidate-aware impact exploration. |
+| **Contract Studio** | Failure-first test investigation, inferred inputs, actual observations, oracle provenance, immutable confirmations and on-demand witness reduction. |
+| **Repair Arena** | Side-by-side diffs, historical precedents, candidate elimination checks, affected-caller regressions, custom patch validation and recommendation policy. |
+| **Model Lab & Vault** | Held-out model metrics, RF/XGBoost comparisons, cohort selection, localization ablation, family confusion matrices, function-risk exploration and reproducibility artifacts. |
+
+Light and dark themes share a restrained charcoal-and-champagne palette. Source edits invalidate stale evidence. The last analysis can be restored on reload without automatically executing it again; live service capabilities remain separate from historical results.
+
+### Scripts and functions
+
+Functions are optional. Scripts containing assignments, loops, conditions, prints or a main guard run through the same isolated worker workflow:
+
+```python
+name = input().strip()
+print(f"Hello, {name or 'SAMYAK'}!")
+```
+
+Optional standard input is bounded to 8,000 characters. Results include real stdout/stderr, exit status, covered lines, duration, timeouts and available exception frames. Traceback locations navigate back to source. Output is read-only; it is not an interactive shell. Live stdout streaming and cancellation are not currently supported.
+
+`EXECUTED_SUCCESSFULLY` records successful execution, **not correctness**. Script-only source has no function-model risk score. Python is the supported language, and programs requiring unsupported imports or packages may not execute in the restricted runner. Source submissions are limited to 60,000 characters.
+
+### Public GitHub import
+
+Enter a canonical `https://github.com/OWNER/REPO` URL, inspect up to eight recommended Python files and open one in the existing editor. Recommendations use bounded static inspection and report dependency caveats and partial-tree limits.
+
+The importer resolves the default branch to an immutable commit, preserves the selected path and provenance, and retrieves regular Python files without cloning, installing packages or executing downloaded code. No GitHub token is required. Opening a file clears unrelated fixture tests, stdin, property contracts and analysis evidence; replacing existing source requires confirmation. Importing never starts execution automatically.
+
+**One selected file is the analysis unit.** Sibling modules and third-party dependencies are not assembled into a runnable repository. GitHub rate limits, unsupported files and unavailable dependencies are reported explicitly.
+
+## Understand the evidence
+
+SAMYAK keeps predictions, static hypotheses, runtime observations and validated test outcomes distinct.
+
+- **Learned risk is not defect certainty.** Function-level RF and XGBoost models use numeric AST features and train-fitted TF-IDF. Rule severity is independent of model probability.
+- **Localization is explainable.** Ranked spans expose rule strength, learned risk, family support, graph proximity and eligible Ochiai coverage. The score is a relative heuristic, not a probability; missing coverage contributes zero and is shown as unavailable.
+- **A crash does not establish a contract.** Oracle tiers distinguish trusted exact expectations (**A**), explicitly justified properties (**B**), accepted-domain runtime faults (**I**) and exploratory observations (**C**). Domain confirmation applies only to the selected input tuple.
+- **Proposed outputs remain unverified.** A repair candidate's output is never automatically promoted to an oracle. Witness reduction must preserve the failure class, source location and argument constraints; reduced logical failures require an applicable oracle.
+- **Validation preserves uncertainty.** Verdicts distinguish `VALIDATED_ON_TESTS`, `VALIDATED_RUNTIME_FAULT_ONLY`, `REJECTED_REGRESSION`, `UNVERIFIED_SUGGESTION` and `INCONCLUSIVE_NO_OUTPUT_ORACLE`. Failures, timeouts, unrun checks and infrastructure errors remain separate.
+- **Reachability is potential impact.** Caller and def-use paths help select relevant tests. Zero observed caller regressions does not mean zero risk. Passing recorded tests is not a proof of universal correctness.
+
+### Bounded investigation tools
+
+Train-only historical retrieval supplies actual cosine similarities, normalized edit priors and repair context, with an explicit retrieval-on/off experiment. Novelty combines historical similarity, model disagreement and feature novelty as heuristic unfamiliarity signals. Static analysis continues when learned evidence is weak.
+
+Candidate tournaments retain syntax, applicability, security, trusted-test, caller-regression and repeatability gates. Recommendation policies return `AUTO_SUGGEST`, `REVIEW_REQUIRED` or `DO_NOT_RECOMMEND`; they never commit user code.
+
+Advanced property checks require an explicit supported `sorted_multiset` contract and execute sorting transformations rather than assuming intent from a function name. Semantic twin experiments accept only eligible equivalence-preserving transformations. Unsupported paths return `NOT_SUPPORTED` with a reason. Ledger verification checks artifact integrity and replay evidence; hashes do not prove correctness or authenticate an author.
+
+## Architecture and execution safety
+
+```text
+Next.js workbench
+       │ REST + resumable SSE
+FastAPI / Pydantic
+       │ immutable jobs, events and content-hashed artifacts
+SQLite WAL ── separate Python worker
+                    ├─ structural analysis, models and historical retrieval
+                    ├─ test inference and LibCST repair candidates
+                    └─ restricted Docker runner → execution and regression evidence
+```
+
+| Layer | Implementation |
+| --- | --- |
+| Frontend | Next.js, React, TypeScript, Tailwind, shadcn/ui, Monaco, React Flow/Dagre and read-only xterm output. |
+| Analysis | Python `ast`, `tokenize`, `symtable`, NetworkX, Ruff and Bandit; source spans, bounded graphs and evidence-tagged rules. |
+| Learning | scikit-learn RF, XGBoost, TF-IDF, versioned models, verified artifact hashes and held-out evaluations. |
+| Tests and repair | Hypothesis, pytest, coverage.py, LibCST templates and optional OpenAI-compatible candidate generation. |
+| Persistence | SQLite WAL, durable worker queue, append-only stage events and SHA-256 local artifacts under ignored `var/`. |
+
+Submitted code is never executed inside the API, browser or host worker. Each suite runs in a dedicated ephemeral Linux container; individual test cases use separate subprocesses. Restrictions include non-root UID 10001, disabled networking, read-only root, dropped capabilities, no-new-privileges, no host mounts or Docker socket, no injected secrets, tmpfs workspaces, 1 CPU, 256 MiB RAM, 32 PIDs and bounded time/output. Arbitrary package installation is unsupported.
+
+**Docker-only isolation is development-grade, not a hardened public multi-tenant sandbox.** Import/name allowlists narrow supported programs but are not a security boundary. The application binds to loopback by default and does not provide public-service authentication, tenancy or quota infrastructure.
+
+Up to two independent candidate suites run concurrently, with unchanged per-container restrictions and deterministic result ordering. Set `SAMYAK_CANDIDATE_CONCURRENCY=1` on constrained hosts. Verified model objects are reused within the worker; submitted execution results are not persistently cached. Real stage timings and execution counters remain inspectable. See [measured performance and methodology](docs/PERFORMANCE_HANDOFF.md) for fixture comparisons and limitations.
+
+## Models, data and reproducibility
+
+The included corpus combines source-only BugsInPy buggy/fixed pairs with witnessed mutations of pinned, licensed TheAlgorithms/Python seeds. Project/problem lineage is split before mutation and TF-IDF fitting; historical retrieval uses training pairs only. Historical project dependencies are never installed, and training never executes corpus programs.
+
+The committed dataset contains **111 retained pairs**, producing **125 training, 4 validation, 10 calibration and 12 test rows**. The held-out test set separates six historical and six algorithmic examples. These are small cohorts: metrics do not establish broad cross-project generalization, and there is **no measured ML localization uplift**. Underrepresented defect families are excluded from the learned family head. QuixBugs is not used in training, retrieval, prompts or tuning; external evaluation remains unevaluated.
+
+- [Source manifest](data/source_manifest.json): pinned revisions, licenses, hashes, lineage and acquisition shortfalls.
+- [Model card](data/models/MODEL_CARD.md): training scope and interpretation limits.
+- [Model manifest](data/models/manifest.json): artifact identities and evaluation metadata.
+- [Capability evidence](docs/USP_EVIDENCE.md): mechanisms, routes, tests and bounded support.
 
 ```sh
-make demo       # Phase 1 source fixtures, exact confirmation and ZIP evidence
-make demo-phase2 # Full live Phase 2 circuit: four sources + witness/retrieval/twin/ledger/Shield
-make test       # Backend unit/integration tests + frontend tests
-make lint       # Ruff checks/format, ESLint and TypeScript
-make build      # Production Next.js build
-make check      # lint + backend/frontend unit/integration tests + build
-make e2e        # Real Playwright workflows; starts the existing dev stack if needed
-make types      # FastAPI OpenAPI → generated frontend TS types
-make reproduce  # source acquisition → runner build → sandbox witnesses → training
+make sources   # Acquire pinned public sources and record inaccessible revisions
+make runner    # Build the restricted execution image
+make corpus    # Generate and witness mutations inside Docker
+make train     # Train and evaluate from the source corpus
 ```
 
-Docker-dependent tests explicitly skip when the runner is unavailable. `make demo` fails closed rather than skipping its execution gate. The API, worker and frontend bind to loopback by default. This is a local development application, without public-service authentication, tenancy or quota infrastructure.
+`make reproduce` runs that sequence. Training is optional for normal use. Immutable versions live under `data/models/versions/`; `data/models/CURRENT` selects the serving version. Load only trusted model artifacts. Fresh witness executions produce fresh timing evidence and may change corpus evidence hashes.
 
-## Use the workbench
+## Configuration
 
-1. Paste/upload Python, or load a source fixture. Loading a fixture only populates source and authored oracle inputs; **Analyze source** runs the same pipeline as a pasted submission.
-2. Watch persisted SSE stages. Inspect risk/family predictions, evidence severity, exact suspicious spans, rule qualifications and each localization signal.
-3. Inspect generated cases. An annotation, successful trial or uncaught exception does **not** establish an input domain or correct output. Cases without an output oracle display `RETURNED_NO_ORACLE`.
-4. For ambiguous behavior, select **Confirm output**, enter one exact JSON expectation and confirm. This creates an A-tier oracle in a **new job/test revision**. Alternatively accept the exact input domain without asserting an output; resolving only its I-tier fault receives `VALIDATED_RUNTIME_FAULT_ONLY`.
-5. Inspect all candidate diffs and original/patched test matrices. The tournament rejects authoritative regressions and preserves caller tests. Export the evidence ZIP. Custom candidates can also be submitted for independent validation.
+Copy `.env.example` to `.env` to override defaults; `make dev` loads it without shell evaluation. Keep credentials and local artifacts out of version control.
 
-### Run ordinary Python scripts
+| Variable | Purpose |
+| --- | --- |
+| `SAMYAK_API_URL` | Local API address; defaults to `http://127.0.0.1:8000`. |
+| `SAMYAK_DATA` | Job database and artifact directory; defaults to `./var`. |
+| `SAMYAK_MODELS` | Model directory; defaults to `./data/models`. |
+| `SAMYAK_RUNNER_IMAGE` | Restricted image built by `make runner`. |
+| `SAMYAK_CANDIDATE_CONCURRENCY` | Candidate-suite concurrency: `2` by default, or `1` for sequential validation. |
+| `SAMYAK_LLM_BASE_URL`, `SAMYAK_LLM_MODEL`, `SAMYAK_LLM_API_KEY` | Optional OpenAI-compatible repair provider; all three are required to enable it. |
 
-Functions are optional. Paste `print("Hello, Samyak!")`, loops, assignments, conditions or an `if __name__ == "__main__":` program and press **Run** (⌘/Ctrl+Enter). The complete module executes as `__main__` through the same immutable-job API, separate worker and restricted Docker image. **Analyze source** (⌘/Ctrl+Shift+Enter) adds static module evidence and, when functions exist, the existing ML/input/repair workflow. A healthy script does not trigger script repair suggestions.
-
-Expand **Standard input** for up to 8,000 characters of stdin. There is no interactive shell or package installation. The resizable **Output / Problems / Execution Trace** panel shows actual stdout/stderr, exit code, exception frames, covered executable lines, duration and timeouts. Click a traceback location to inspect that exact source line. Clear only clears the displayed output; immutable evidence remains exportable. Source, stdin or test edits invalidate prior results. Run creates a new job; it never rewrites an old report. The script suggestion is non-blocking and dismissible per submission.
-
-`EXECUTED_SUCCESSFULLY` means the process completed; it is **not** a correctness oracle or a validated repair. Script crashes retain an unconfirmed input domain. Function-level models and frozen metrics are unchanged; script-only source shows **ML risk: Not applicable to script-only source**. Python is the supported language; `printf(...)` produces an actual Python `NameError` with a helpful C/Python explanation rather than translation.
-
-The v1.2 API accepts `POST /v1/analyses` with `{"source":"print(input())", "mode":"SCRIPT", "stdin":"hello\n"}`. Default `mode: "ANALYZE"` automatically executes script-only submissions, including those with zero tests. `Report.script_result` carries the observation separately from function-test validation. Evidence bundles retain stdin, source and runner identity; `scripts/replay.py` replays both script and function observations in the exact image.
-
-Rebuild with `make runner` after updating this checkout. All existing import/name allowlists remain in force; only bounded `input()` is additionally supported in the SCRIPT path. CPU/wall/RAM/PID/output limits remain fixed. Output is read-only xterm text with terminal controls removed, not a host terminal. Bounded results arrive when the worker finishes; live stdout streaming and job cancellation are not supported. Resource-forced termination can lack a full traceback/coverage; it never receives a successful verdict.
-
-Authored tests may be provided through the JSON editor or literal source assertions. Example:
-
-```json
-[{"function":"average","args":[[1,2,3]],"expected":2.0,"has_expected":true,"tier":"A","domain":"CONFIRMED","origin":"USER_TEST"}]
-```
-
-A/B expected-behavior failures, I operational faults and C exploratory observations are separate. B currently supports an **explicitly declared sorting contract** (`property_contracts: {"function_name": "sorted_multiset"}`): output must equal the sorted input multiset. Naming alone never activates that property. Domain confirmation accepts only the selected exact input, not neighboring guesses. Timeouts, flakes, infrastructure errors, failures and unrun checks retain different states.
-
-## Architecture and boundaries
-
-- **Structural intelligence:** `ast`, `tokenize`, `symtable`, NetworkX; exact source spans, AST/token/function features, bounded CFG, lexical def-use and calls. Dynamic/unresolved calls are labeled. Annotations remain structural metadata, not runtime index operations.
-- **ML:** separately trained RF baseline and XGBoost binary/family heads; numeric AST features and train-fitted TF-IDF. Project/problem groups are frozen before mutation and vocabulary fitting. A disjoint cohort calibrates XGBoost risk when sufficient. Model artifacts have immutable version directories, content hashes, measured cohort metrics and model cards.
-- **Localization:** exposed rule strength, learned risk/family priors, graph proximity and Ochiai when failures have coverage. ML-on/off Top-1/Top-3/MRR ablation uses the same frozen candidates. No measured uplift is claimed for the current small cohort.
-- **History:** TF-IDF top-k over train-only buggy→fixed pairs, normalized repair operators and smoothed edit-frequency priors. Exact self matches are excluded. Low similarity signals unfamiliarity, never a proven defect.
-- **Inputs/oracles:** annotations → literal call sites → AST operations → bounded Docker trials. Explicit Hypothesis strategies generate boundaries/negative/edge cases; bounded `find` attempts shrink reproducible exception signatures. Shrinking does not transfer an exact oracle to a new tuple.
-- **Repair:** formatting-preserving LibCST comparison, empty/zero guard and return-sentinel edits; surrounding functions, callers, def-use, witnesses, test revision and precedents accompany candidates. Originals are never edited. Syntax, signatures, imports, edit budget, security policy, trusted regressions and unresolved checks gate validation.
-- **Execution:** fixed Linux Docker image; inputs copied over stdin into ephemeral tmpfs; non-root UID 10001, network disabled, read-only root, no mounts/socket/secrets, dropped capabilities, no-new-privileges, 1 CPU, 256 MiB RAM, 32 PIDs, per-case CPU/wall limits, suite deadline and capped output. No arbitrary package installation. Coverage is collected inside the container. Expected outputs are compared outside it.
-- **Persistence/API:** Pydantic v1.2 additive contracts, SQLite WAL durable polling, single-worker OS lock, crash recovery, SHA-256 artifact verification, resumable SSE and immutable source/test/patch revisions. No Redis/Postgres.
-
-**Docker-only isolation is development-grade.** The source allowlist restricts supported programs but is not a security boundary. Do not present this deployment as a hardened public multi-tenant sandbox. Runtime samples contain seven warmed calls per case and separate container runs; startup is excluded, but noise/order effects are not controlled enough to claim optimization. Reports correctly return `PERFORMANCE_INCONCLUSIVE` while retaining median/p95 samples and changed-line footprints (added plus removed source lines).
-
-## Data and reproducibility
-
-`data/source_manifest.json` pins TheAlgorithms/Python and BugsInPy metadata revisions, source hashes, licenses, extracted functions, preassigned groups, historical commits and exact acquisition exclusions. `data/seeds/` retains source and license notices. `data/corpus.json` retains verified mutations, exact fault spans, distinguishing Docker witnesses and source-only historical pairs. No historical dependencies are installed.
-
-```sh
-make sources   # Public pinned Git/raw source extraction; records inaccessible sources
-make runner
-make corpus    # Executes parents/mutants only in Docker; excludes unkilled/unresolved mutants
-make train     # Train/evaluate; no program execution
-```
-
-The final corpus has 21 seed entries (19 unique algorithm problems), 20 historical source pairs before filtering and 111 retained pairs. 92/127 mutants had distinguishing witnesses; 35 were excluded. Rows are deduplicated and project/problem disjoint: **125 train, 4 validation, 10 calibration, 12 test**. Counts and real/synthetic results are not pooled into a flattering single score. `GUARD_REMOVAL` has only two unique training rows and is excluded from the learned family head; static guards and witnessed repair validation still work.
-
-Three proposed seed paths were absent at the pinned revision; HTTPie bug 1/2 source revisions returned 404. Exact failures are in the manifest. QuixBugs is **not downloaded or used** in training, retrieval, prompts or tuning; external QuixBugs and separate family-holdout measurements are explicitly **NOT_EVALUATED**. This small corpus does not establish broad unseen-defect generalization. The model card/metrics expose weak cross-project behavior and no localization uplift.
-
-The frozen corpus includes actual execution timings, so a fresh full witness run produces new evidence hashes. `make train` with the same committed corpus, pinned dependencies and fixed seed reproduces the learning inputs and model artifacts. Immutable model versions are under `data/models/versions/`; `CURRENT` selects the serving revision. Do not load untrusted joblib files.
+With an LLM provider enabled, source, surrounding context, tests, witnessed failures and short training-only precedents are sent to that endpoint. Responses remain untrusted candidates subject to the same validation gates. Leave the values empty for local deterministic repairs.
 
 ## API and replay
 
-- `POST /v1/analyses`; `GET /v1/analyses/{id}` and `/report`
-- `GET /v1/analyses/{id}/events` (SSE with event IDs / Last-Event-ID)
-- `POST /v1/analyses/{id}/tests` (new test-generation revision)
-- `POST /v1/analyses/{id}/contracts/confirm` (exact A oracle)
-- `POST /v1/analyses/{id}/contracts/domain` (exact input-domain acceptance)
-- `GET /v1/analyses/{id}/patches`; `POST .../patches/validate`
-- `GET /v1/analyses/{id}/bundle`; `GET /v1/fixtures/{name}`
+FastAPI/Pydantic is the schema authority. Run `make types` after contract changes to regenerate OpenAPI and frontend TypeScript types.
 
-Evidence bundles include source, tests, patches/diffs, job events, full results, model/runner identity and a hashed replay manifest. Extract a bundle and run:
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /v1/capabilities` | Current worker, model and runner readiness. |
+| `POST /v1/analyses` | Submit source, tests, optional stdin and execution mode. |
+| `GET /v1/analyses/{id}` and `/report` | Read job state and immutable results. |
+| `GET /v1/analyses/{id}/events` and `/timeline` | Resumable SSE and persisted stage history. |
+| `POST /v1/analyses/{id}/tests` | Generate a new test revision. |
+| `POST /v1/analyses/{id}/contracts/{confirm,domain,decision,property}` | Record exact expectations, domain decisions or supported property contracts. |
+| `GET /v1/analyses/{id}/patches`; `POST .../patches/validate` | Inspect candidates or validate a submitted patch. |
+| `POST /v1/analyses/{id}/investigate` | Run witness, replay, precedent, ledger, twin or metamorphic investigations. |
+| `GET /v1/analyses/{id}/bundle` | Download replayable evidence. |
+| `POST /v1/github/inspect` and `/v1/github/file` | Inspect a public repository and retrieve a selected commit-pinned file. |
+
+For example, submit a script without an output oracle:
+
+```sh
+curl -X POST http://127.0.0.1:8000/v1/analyses \
+  -H 'Content-Type: application/json' \
+  -d '{"source":"print(input())","mode":"SCRIPT","stdin":"hello\n"}'
+```
+
+Evidence bundles contain source, tests, candidates/diffs, events, outcomes, model/runner identities and a hashed replay manifest. Extract a bundle and replay it with:
 
 ```sh
 PYTHONPATH=backend .venv/bin/python scripts/replay.py /path/to/extracted-bundle
 ```
 
-Replay requires the exact recorded Docker image ID. It verifies artifact hashes and compares statuses, outputs and exception signatures; timing equality is intentionally not required.
+Replay requires the exact recorded Docker image. It verifies hashes and compares statuses, outputs and exception signatures; timing equality is not required. Runtime comparisons may remain `PERFORMANCE_INCONCLUSIVE` when equivalent workloads and reliable measurements are unavailable.
 
-Copy `.env.example` to `.env` to configure paths or the optional OpenAI-compatible `SAMYAK_LLM_BASE_URL`, `SAMYAK_LLM_MODEL`, `SAMYAK_LLM_API_KEY`. `make dev` loads it without shell evaluation. With all three LLM values configured, source, local context, tests, witnessed failures and short train-only precedents are sent to that endpoint; an LLM response is always an untrusted candidate. The default requires no key.
+## Development and verification
 
-## Phase 2 workspaces and experiments
+| Command | Purpose |
+| --- | --- |
+| `make dev` | Start the local API, worker and frontend. |
+| `make demo` | Execute live source fixtures, exact confirmation and evidence export. |
+| `make test` | Run backend and frontend unit/integration tests. |
+| `make lint` | Check Ruff formatting/lint, ESLint and TypeScript. |
+| `make build` | Build the production frontend. |
+| `make check` | Run lint, tests and build. |
+| `make e2e` | Run Playwright workflows against the application. |
+| `make types` | Regenerate OpenAPI and frontend API types. |
 
-The warm light/dark Workbench uses local Geist fonts, custom Monaco themes, diagnostics/heat gutters, fullscreen, resizing, search/folding/minimap, Cmd/Ctrl+Enter to Run, Cmd/Ctrl+Shift+Enter to Analyze, and source/stdin/test revision invalidation. Fault Atlas offers bounded AST/call/CFG/def-use views, source peek and impacted callers. Contract Studio exposes real witnesses, exact confirmations/rejections and justified property checks. Repair Arena shows side-by-side diffs, elimination gates, policy and actual retrieval ablation. Model Lab & Vault shows measured binary/family/localization metrics, heuristic novelty, immutable identities and verified replay.
-
-Experiment actions use the **same SQLite queue/worker/SSE**: `POST /v1/analyses/{id}/investigate` with `action` = `witness`, `replay`, `precedents`, `ledger`, `twin` or `metamorphic`. Exact rejections use `/contracts/decision`; sorting contracts use `/contracts/property`. `GET /v1/capabilities` reads real worker/model/runner readiness; `/timeline` exposes persisted events. All create inspectable evidence and retain uncertainty. Optional LLM configuration remains disabled by default.
+Install the browser once before running E2E tests:
 
 ```sh
 cd frontend
-npx playwright install chromium  # Once, for browser E2E
-npm run test:e2e
+npx playwright install chromium
+cd ..
+make e2e
 ```
 
-Browser tests execute real backend jobs rather than mocked verdicts, including confirmation, regressions, abstention, graph/diff navigation, SSE recovery, witness/retrieval/twin/ledger actions, metamorphic properties and 390/1440/1920px light/dark layouts. Run Docker first; execution failures are intentionally not disguised as skipped live-demo success.
+Fixtures in [`fixtures/`](fixtures/) are source programs, not precomputed reports. They cover boundary defects, untyped runtime faults, caller regressions, unfamiliar code and larger multi-function examples through the same analysis endpoints as user submissions.
 
-See [USP evidence inventory](docs/USP_EVIDENCE.md) and [seven-minute judge walkthrough](docs/JUDGE_DEMO.md). No new model accuracy, ML localization uplift, external QuixBugs evaluation or production sandbox security is claimed. Property/twin eligibility is intentionally bounded and unsupported paths are explicit.
-
-See [Phase 2 handoff](docs/PHASE2_HANDOFF.md), [Phase 1 handoff](docs/PHASE1_HANDOFF.md), [requirement traceability](docs/TRACEABILITY.md) and [model card](data/models/MODEL_CARD.md).
-
-## Public GitHub file import and concise test investigation
-
-Use the GitHub icon beside file upload, enter a public `https://github.com/OWNER/REPO` URL, inspect the recommendations, then open one file. The importer pins the default branch to a commit, parses bounded regular Python blobs without execution, and reports dependency/partial-tree limits. Opening a file requires explicit replacement approval when source is present and clears fixture tests, stdin and old analysis evidence. Run or Analyze remains an explicit action. This is single-file investigation, not repository-wide execution.
-
-`POST /v1/github/inspect` accepts `{ "url": "https://github.com/TheAlgorithms/Python" }`; `/v1/github/file` accepts that canonical URL, the returned `sha` and a recommended `path`. No token, cloning, package installation or arbitrary URL fetching is used. Cached inspections expire after ten minutes; reinspection resolves expired selections. GitHub rate limits and unavailable dependencies remain visible.
-
-Contract Studio shows failed cases first, with passing/exploratory cases collapsed. Open a case for exact oracle/domain/replay actions, unverified candidate proposals and witness reproduction. Runtime shrinking must preserve exception class, source location and argument types; logical reductions remain inconclusive without a valid reduced-input oracle. The optional sorting Shield is behind Advanced property checks and never assumes a contract. See [local implementation notes](docs/IMPORT_CONTRACT_HANDOFF.md).
+Tests cover parsing, leakage prevention, isolation, oracle uncertainty, harmful-patch rejection, model identity, graph/source navigation, import constraints and connected investigation workflows. Docker-dependent tests explicitly skip when execution is unavailable; live demos fail closed with readiness guidance rather than reporting a successful execution.
