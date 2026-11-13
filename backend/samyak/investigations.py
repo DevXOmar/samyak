@@ -13,18 +13,27 @@ def signature(result):
     return result.status, result.output, result.error
 
 
-def witnessed_case(report, runner):
+def witnessed_case(report, runner, test_id=None):
     failing = [
         (t, r)
         for t, r in zip(report.tests, report.original_results)
-        if r.status in {"FAIL", "ERROR"} and r.repeatable is not False
+        if r.status in {"FAIL", "ERROR"}
+        and r.repeatable is not False
+        and (test_id is None or t.id == test_id)
     ]
     if not failing:
         return {"status": "NOT_SUPPORTED", "reason": "No reproduced failure exists in the recorded suite"}
     # The smallest already-authoritative case needs no guessed expected output.
-    failing.sort(key=lambda pair: (len(json.dumps(pair[0].args)), pair[0].id))
+    failing.sort(
+        key=lambda pair: (
+            0
+            if pair[1].status == "FAIL" and pair[0].tier in {"A", "B"} and pair[0].domain == "CONFIRMED"
+            else 1,
+            len(json.dumps(pair[0].args)),
+            pair[0].id,
+        )
+    )
     smallest, prior = failing[0]
-    largest, _ = max(failing, key=lambda pair: len(json.dumps(pair[0].args)))
     original_replay = runner.run(report.source, [smallest])[0]
     if signature(original_replay) != signature(prior):
         return {
@@ -48,11 +57,20 @@ def witnessed_case(report, runner):
         )
         replay = runner.run(report.source, [probe])[0]
         replay2 = runner.run(report.source, [probe])[0]
-        repeatable = signature(replay) == signature(replay2) and replay.status == "ERROR"
+        repeatable = (
+            signature(replay) == signature(replay2)
+            and replay.status == "ERROR"
+            and replay.error.split(":")[0] == prior.error.split(":")[0]
+            and bool(prior.fault_lines)
+            and replay.fault_lines == prior.fault_lines
+        )
         return {
             "status": "REPRODUCED" if repeatable else "INCONCLUSIVE_REPLAY",
-            "original_args": largest.args,
+            "original_args": smallest.args,
             "minimal_args": args,
+            "reduction_status": "INCONCLUSIVE_REDUCTION"
+            if args == smallest.args
+            else "SMALLER_REPRODUCIBLE_WITNESS",
             "test": probe.model_dump(),
             "parent_test_id": smallest.id,
             "result": replay.model_dump(),
@@ -63,20 +81,30 @@ def witnessed_case(report, runner):
             "domain": "UNCONFIRMED",
             "reason": "Exception shrinking does not establish the new input's contract or expected output",
         }
-    largest_result = runner.run(report.source, [largest])[0]
+    if smallest.tier not in {"A", "B"} or smallest.domain != "CONFIRMED":
+        return {
+            "status": "INCONCLUSIVE_NO_OUTPUT_ORACLE",
+            "original_args": smallest.args,
+            "minimal_args": smallest.args,
+            "parent_test_id": smallest.id,
+            "result": original_replay.model_dump(),
+            "reason": "A trusted output oracle is required to certify a logical failure or its reduction",
+            "reduction_status": "INCONCLUSIVE_REDUCTION",
+        }
     return {
         "status": "REPRODUCED",
-        "original_args": largest.args,
+        "original_args": smallest.args,
         "minimal_args": smallest.args,
+        "reduction_status": "INCONCLUSIVE_REDUCTION",
         "test": smallest.model_dump(),
         "parent_test_id": smallest.id,
         "result": original_replay.model_dump(),
-        "original_result": largest_result.model_dump(),
+        "original_result": original_replay.model_dump(),
         "repeatable": True,
         "failure_signature": "TRUSTED_OUTPUT_MISMATCH",
         "reached_lines": original_replay.lines,
         "domain": smallest.domain,
-        "method": "Smallest independently oracle-backed failing case in the frozen suite",
+        "method": "Original trusted mismatch retained; reduction inconclusive without an oracle for reduced inputs",
         "reason": "Semantic shrinking beyond exact authored cases is NOT_SUPPORTED without a broader declared reference",
     }
 
@@ -129,7 +157,9 @@ def run_investigation(ident, payload, previous, stage):
 
     elif action == "witness":
         stage("execution", "Reproducing and minimizing actual failures; oracle/domain scope is preserved")
-        report.intelligence["witness"] = witnessed_case(report, runner)
+        report.intelligence["witness"] = witnessed_case(
+            report, runner, payload["investigation"].get("test_id")
+        )
     else:
         # Registered extensions below dispatch independently; unsupported eligibility remains explicit.
         from .experiments import run_experiment

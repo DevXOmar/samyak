@@ -66,6 +66,7 @@ def run_pipeline(ident, payload, stage, parent=None):
     report = Report(
         job_id=ident, parent_id=parent, source_hash=digest(source), source=source, test_revision="PENDING"
     )
+    report.intelligence["source_provenance"] = request.provenance
     report.intelligence["execution"] = {"mode": "FUNCTION_TESTS", "stdin": request.stdin}
     stage("structure", "Parsing AST, tokens, scopes, CFG and lexical dependencies without execution")
     try:

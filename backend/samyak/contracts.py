@@ -49,6 +49,7 @@ class TestCase(ContractModel):
 
 
 class AnalysisRequest(ContractModel):
+    provenance: dict[str, str] | None = None
     mode: Literal["ANALYZE", "SCRIPT"] = "ANALYZE"
     stdin: str = Field(default="", max_length=8000)
     source: str = Field(min_length=1, max_length=60000)

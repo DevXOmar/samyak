@@ -293,12 +293,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/github/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Inspect Github */
+        post: operations["inspect_github_v1_github_inspect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/github/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Github File */
+        post: operations["github_file_v1_github_file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** AnalysisRequest */
         "AnalysisRequest-Input": {
+            /** Provenance */
+            provenance?: {
+                [key: string]: string;
+            } | null;
             /**
              * Mode
              * @default ANALYZE
@@ -323,6 +361,10 @@ export interface components {
         };
         /** AnalysisRequest */
         "AnalysisRequest-Output": {
+            /** Provenance */
+            provenance: {
+                [key: string]: string;
+            } | null;
             /**
              * Mode
              * @default ANALYZE
@@ -498,6 +540,32 @@ export interface components {
             /** Fault Lines */
             fault_lines: number[];
         };
+        /** FileRequest */
+        FileRequest: {
+            /** Url */
+            url: string;
+            /** Sha */
+            sha: string;
+            /** Path */
+            path: string;
+        };
+        /** FileResult */
+        FileResult: {
+            /** Repository */
+            repository: string;
+            /** Sha */
+            sha: string;
+            /** Path */
+            path: string;
+            /** Source */
+            source: string;
+            /** Functions */
+            functions: number;
+            /** Classes */
+            classes: number;
+            /** Caveats */
+            caveats: string[];
+        };
         /** Finding */
         Finding: {
             /** Id */
@@ -603,6 +671,43 @@ export interface components {
             property: "sorted_multiset";
             /** Reviewer */
             reviewer: string;
+        };
+        /** Recommended */
+        Recommended: {
+            /** Path */
+            path: string;
+            /** Size */
+            size: number;
+            /** Blob Sha */
+            blob_sha: string;
+            /** Reason */
+            reason: string;
+            /** Functions */
+            functions: number | null;
+            /** Classes */
+            classes: number | null;
+            /** Caveats */
+            caveats: string[];
+        };
+        /** RepoRequest */
+        RepoRequest: {
+            /** Url */
+            url: string;
+        };
+        /** RepoResult */
+        RepoResult: {
+            /** Repository */
+            repository: string;
+            /** Url */
+            url: string;
+            /** Sha */
+            sha: string;
+            /** Files */
+            files: components["schemas"]["Recommended"][];
+            /** Partial */
+            partial: boolean;
+            /** Limits */
+            limits: string;
         };
         /** Report */
         Report: {
@@ -1366,6 +1471,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    inspect_github_v1_github_inspect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepoRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RepoResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    github_file_v1_github_file_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileResult"];
                 };
             };
             /** @description Validation Error */

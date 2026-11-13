@@ -64,7 +64,12 @@ def test_shrinking_does_not_transfer_an_exact_confirmed_contract():
             assert cases[0].domain == "UNCONFIRMED"
             assert not cases[0].has_expected and cases[0].tier == "C"
             return [
-                Execution(test_id=cases[0].id, status="ERROR", error="ZeroDivisionError: division by zero")
+                Execution(
+                    test_id=cases[0].id,
+                    status="ERROR",
+                    error="ZeroDivisionError: division by zero",
+                    fault_lines=[1],
+                )
             ]
 
     case = TestCase(
@@ -77,7 +82,11 @@ def test_shrinking_does_not_transfer_an_exact_confirmed_contract():
         expected=1,
     )
     original = Execution(
-        test_id="authored", status="ERROR", error="ZeroDivisionError: division by zero", repeatable=True
+        test_id="authored",
+        status="ERROR",
+        error="ZeroDivisionError: division by zero",
+        repeatable=True,
+        fault_lines=[1],
     )
     runner = RestrictedObservationRunner()
     witness = shrink_fault("def f(xs): pass", [case], [original], runner)

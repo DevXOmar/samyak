@@ -9,6 +9,10 @@ import {
   type TestCase,
 } from "@/lib/client";
 export function useAnalysis() {
+  const [filename, setFilename] = useState("");
+  const [provenance, setProvenance] = useState<Record<string, string> | null>(
+    null,
+  );
   const [source, setSourceState] = useState("");
   const [stdin, setStdin] = useState("");
   const [tests, setTestsState] = useState<TestCase[]>([]);
@@ -30,39 +34,49 @@ export function useAnalysis() {
   const stream = useRef<EventSource | null>(null);
   const active = useRef<string | null>(null);
   const lastEvent = useRef(0);
+  const restoreStarted = useRef(false);
   const sourceRef = useRef("");
+  const sourceTouched = useRef(false);
+  const restoringPending = useRef(false);
   const setSource = useCallback((text: string) => {
+    sourceTouched.current = true;
+    restoringPending.current = false;
     sourceRef.current = text;
     setSourceState(text);
   }, []);
-  const finish = useCallback(async (id: string) => {
-    try {
-      const current = await api<Job>(`/v1/analyses/${id}`);
-      if (active.current !== id) return;
-      setJob(current);
-      if (current.status === "FAILED")
-        throw new Error(current.error || "Worker failed");
-      const [result, timeline] = await Promise.all([
-        api<Report>(`/v1/analyses/${id}/report`),
-        api<PipelineEvent[]>(`/v1/analyses/${id}/timeline`),
-      ]);
-      if (active.current !== id) return;
-      setReport(result);
-      window.dispatchEvent(new Event("samyak-analysis-completed"));
-      setEvents(timeline);
-      if (testsVersion.current === submittedVersion.current)
-        setContractDirty(false);
-      setError("");
-      setConnection("complete");
-    } catch (e) {
-      if (active.current === id) {
-        setError(String(e));
-        setConnection("error");
+  const finish = useCallback(
+    async (id: string) => {
+      try {
+        const current = await api<Job>(`/v1/analyses/${id}`);
+        if (active.current !== id) return;
+        setJob(current);
+        if (current.status === "FAILED")
+          throw new Error(current.error || "Worker failed");
+        const [result, timeline] = await Promise.all([
+          api<Report>(`/v1/analyses/${id}/report`),
+          api<PipelineEvent[]>(`/v1/analyses/${id}/timeline`),
+        ]);
+        if (active.current !== id) return;
+        if (restoringPending.current && !sourceTouched.current)
+          setSource(result.source);
+        setReport(result);
+        window.dispatchEvent(new Event("samyak-analysis-completed"));
+        setEvents(timeline);
+        if (testsVersion.current === submittedVersion.current)
+          setContractDirty(false);
+        setError("");
+        setConnection("complete");
+      } catch (e) {
+        if (active.current === id) {
+          setError(String(e));
+          setConnection("error");
+        }
+      } finally {
+        if (active.current === id) setBusy(false);
       }
-    } finally {
-      if (active.current === id) setBusy(false);
-    }
-  }, []);
+    },
+    [setSource],
+  );
   const watch = useCallback(
     async (next: Job, resume = false) => {
       stream.current?.close();
@@ -127,18 +141,32 @@ export function useAnalysis() {
     [finish],
   );
   useEffect(() => {
+    if (restoreStarted.current) return () => stream.current?.close();
+    restoreStarted.current = true;
     const saved = localStorage.getItem("samyak-job-v1");
     if (saved)
       void api<Job>(`/v1/analyses/${saved}`)
         .then(async (current) => {
           if (active.current) return;
-          const request = await api<Report>(
-            `/v1/analyses/${saved}/report`,
-          ).catch(() => null);
-          if (active.current) return;
+          if (current.status !== "COMPLETED") {
+            restoringPending.current = !sourceTouched.current;
+            await watch(current);
+            return;
+          }
+          const [request, timeline] = await Promise.all([
+            api<Report>(`/v1/analyses/${saved}/report`),
+            api<PipelineEvent[]>(`/v1/analyses/${saved}/timeline`),
+          ]);
+          if (active.current || sourceTouched.current) return;
           if (request) {
             if (!sourceRef.current) setSource(request.source);
             setReport(request);
+            const origin = request.intelligence.source_provenance as Record<
+              string,
+              string
+            > | null;
+            setProvenance(origin || null);
+            setFilename(origin?.path || "");
             setStdin(
               String(
                 (
@@ -150,7 +178,11 @@ export function useAnalysis() {
             );
             setTestsState(request.tests);
           }
-          await watch(current);
+          active.current = current.id;
+          setJob(current);
+          setEvents(timeline);
+          setBusy(false);
+          setConnection("complete");
         })
         .catch(() => localStorage.removeItem("samyak-job-v1"));
     return () => stream.current?.close();
@@ -158,7 +190,13 @@ export function useAnalysis() {
   const run = useCallback(
     async (
       path = "/v1/analyses",
-      body: unknown = { source: sourceRef.current, tests, fixture, stdin },
+      body: unknown = {
+        source: sourceRef.current,
+        tests,
+        fixture,
+        stdin,
+        provenance,
+      },
     ) => {
       submittedVersion.current = testsVersion.current;
       setBusy(true);
@@ -172,7 +210,7 @@ export function useAnalysis() {
         setConnection("error");
       }
     },
-    [tests, fixture, stdin, watch],
+    [tests, fixture, stdin, provenance, watch],
   );
   const load = useCallback(
     async (name: NonNullable<AnalysisRequest["fixture"]>) => {
@@ -181,6 +219,8 @@ export function useAnalysis() {
         stream.current?.close();
         active.current = null;
         localStorage.removeItem("samyak-job-v1");
+        setFilename("");
+        setProvenance(null);
         setSource(data.source);
         setStdin(data.stdin || "");
         setTestsState(data.tests || []);
@@ -199,6 +239,30 @@ export function useAnalysis() {
   );
   return {
     source,
+    filename,
+    provenance,
+    importSource: (
+      text: string,
+      path: string,
+      origin: Record<string, string>,
+    ) => {
+      stream.current?.close();
+      active.current = null;
+      localStorage.removeItem("samyak-job-v1");
+      setSource(text);
+      setFilename(path);
+      setProvenance(origin);
+      setTestsState([]);
+      setStdin("");
+      setFixture(null);
+      setContractDirty(false);
+      setReport(null);
+      setJob(null);
+      setEvents([]);
+      setError("");
+      setBusy(false);
+      setConnection("idle");
+    },
     setSource,
     stdin,
     setStdin,

@@ -91,17 +91,19 @@ test("spec-less crash, exact domain confirmation, No and Yes oracle revisions", 
   );
   await workspace(page, "Contract Studio");
   const empty = page
-    .locator("tbody tr")
+    .locator(".contract-case")
     .filter({ hasText: "average([[]])" })
     .first();
   await expect(empty).toContainText("ZeroDivisionError");
   const domain = page.waitForResponse((r) =>
     r.url().endsWith("/contracts/domain"),
   );
-  await empty.getByRole("button", { name: "Confirm input domain" }).click();
+  await empty
+    .getByRole("button", { name: "Confirm domain", exact: true })
+    .click();
   expect((await domain).status()).toBe(202);
   await expect(
-    page.getByRole("button", { name: "Generate a new revision" }),
+    page.getByRole("button", { name: "Generate tests" }),
   ).toBeEnabled();
   await expect(page.locator(".intro-action")).toContainText("COMPLETED");
   await workspace(page, "Workbench");
@@ -110,28 +112,32 @@ test("spec-less crash, exact domain confirmation, No and Yes oracle revisions", 
   );
   await workspace(page, "Contract Studio");
   const row = page
-    .locator("tbody tr")
+    .locator(".contract-case")
     .filter({ hasText: "average([[]])" })
     .first();
+  await row.locator("summary").first().click();
   const no = page.waitForResponse((r) =>
     r.url().endsWith("/contracts/decision"),
   );
-  await row.getByRole("button", { name: "No", exact: true }).click();
+  await row
+    .getByRole("button", { name: "Reject proposed expectation", exact: true })
+    .click();
   expect((await no).status()).toBe(202);
   await expect(
-    page.getByRole("button", { name: "Generate a new revision" }),
+    page.getByRole("button", { name: "Generate tests" }),
   ).toBeEnabled();
   const current = page
-    .locator("tbody tr")
+    .locator(".contract-case")
     .filter({ hasText: "average([[]])" })
     .first();
+  await current.locator("summary").first().click();
   await current
     .getByRole("button", { name: "Edit expected", exact: true })
     .click();
   await page.getByLabel("Expected output / JSON").fill("0");
   await page.getByRole("button", { name: "Confirm & rerun" }).click();
   await expect(
-    page.getByRole("button", { name: "Generate a new revision" }),
+    page.getByRole("button", { name: "Generate tests" }),
   ).toBeEnabled();
   await workspace(page, "Workbench");
   await expect(page.getByTestId("verdict")).toContainText("VALIDATED_ON_TESTS");
@@ -162,6 +168,12 @@ test("caller trap, blast radius, policy and ledger controls expose real evidence
     page.getByRole("region", { name: "Blast radius" }),
   ).toContainText(/caller regressions/);
   await workspace(page, "Model Lab & Vault");
+  await page
+    .locator(".lab-disclosure")
+    .filter({ hasText: "Novelty Radar" })
+    .locator("summary")
+    .first()
+    .click();
   await expect(
     page.getByRole("region", { name: "Novelty Radar" }),
   ).toContainText("Explicitly heuristic");
@@ -182,6 +194,12 @@ test("unfamiliar correct fixture abstains without false confirmation", async ({
   );
   await expect(page.locator(".finding-list")).toContainText("bad condition");
   await workspace(page, "Model Lab & Vault");
+  await page
+    .locator(".lab-disclosure")
+    .filter({ hasText: "Novelty Radar" })
+    .locator("summary")
+    .first()
+    .click();
   await expect(
     page.getByRole("region", { name: "Novelty Radar" }),
   ).toBeVisible();
@@ -229,7 +247,9 @@ test("SSE transport reconnects without fabricated progress or lost reports", asy
       await route.abort("failed");
     } else await route.continue();
   });
-  await load(page, "An unknown contract");
+  await page
+    .getByRole("textbox", { name: "Python source editor" })
+    .fill("def identity(value):\n    return value\n");
   await page
     .getByRole("button", { name: "Analyze source", exact: true })
     .click();
@@ -252,20 +272,37 @@ test("witness, retrieval, twin and ledger actions produce inspected artifacts", 
   await load(page, "Boundary, not a guess");
   await analyze(page);
   await workspace(page, "Contract Studio");
-  await page.getByRole("button", { name: "Find smallest witness" }).click();
+  await page
+    .locator(".contract-case")
+    .first()
+    .locator("summary")
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: "Reproduce / Find smaller witness" })
+    .click();
   await expect(
-    page.getByRole("button", { name: "Find smallest witness" }),
+    page.getByRole("button", { name: "Generate tests" }),
   ).toBeEnabled();
+  await page
+    .locator(".contract-case")
+    .first()
+    .locator("summary")
+    .first()
+    .click();
   await expect(
-    page.getByRole("region", { name: "Counterexample Studio" }),
+    page.getByRole("region", { name: "Counterexample evidence" }),
   ).toContainText("REPRODUCED");
-  await page.getByRole("button", { name: "Replay minimized witness" }).click();
+  await page.getByRole("button", { name: "Replay witness" }).click();
   await expect(
-    page.getByRole("button", { name: "Find smallest witness" }),
+    page.getByRole("button", { name: "Generate tests" }),
   ).toBeEnabled();
-  await expect(page.getByRole("region", { name: "Replay" })).toContainText(
-    "MATCH",
-  );
+  await expect(
+    page
+      .locator(".case-details details")
+      .filter({ hasText: "Replay evidence" })
+      .first(),
+  ).toContainText("MATCH");
   await workspace(page, "Repair Arena");
   await page.getByRole("button", { name: "Compare retrieval" }).click();
   await expect(
@@ -275,14 +312,60 @@ test("witness, retrieval, twin and ledger actions produce inspected artifacts", 
     page.getByRole("region", { name: "Precedent comparison" }),
   ).toContainText("First valid rank");
   await workspace(page, "Model Lab & Vault");
+  await page
+    .locator(".lab-disclosure")
+    .filter({ hasText: "Semantic Twin Challenge" })
+    .locator("summary")
+    .first()
+    .click();
+  const pendingRuntwinchallenge = page.waitForResponse(
+    (r) => r.url().endsWith("/investigate") && r.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Run twin challenge" }).click();
+  const newRuntwinchallenge = await (await pendingRuntwinchallenge).json();
+  await expect(page.locator(".intro-action")).toContainText(
+    newRuntwinchallenge.id.slice(0, 8),
+  );
+  await expect(page.locator(".intro-action")).toContainText("COMPLETED");
+  await expect(
+    page.getByRole("heading", { name: "This analysis", exact: true }),
+  ).toBeVisible();
+  await page
+    .locator(".lab-disclosure")
+    .filter({ hasText: "Semantic Twin Challenge" })
+    .locator("summary")
+    .first()
+    .click();
   await expect(
     page.getByRole("button", { name: "Run twin challenge" }),
   ).toBeEnabled();
   await expect(
     page.getByRole("region", { name: "Semantic Twin Challenge" }),
   ).toContainText("MEASURED");
+  await page
+    .locator(".lab-disclosure")
+    .filter({ hasText: "Proof-Carrying Patch Ledger" })
+    .locator("summary")
+    .first()
+    .click();
+  const pendingVerifyreplay = page.waitForResponse(
+    (r) => r.url().endsWith("/investigate") && r.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Verify & replay" }).click();
+  const newVerifyreplay = await (await pendingVerifyreplay).json();
+  await expect(page.locator(".intro-action")).toContainText(
+    newVerifyreplay.id.slice(0, 8),
+  );
+  await expect(page.locator(".intro-action")).toContainText("COMPLETED");
+  await expect(
+    page.getByRole("heading", { name: "This analysis", exact: true }),
+  ).toBeVisible();
+  await page
+    .locator(".lab-disclosure")
+    .filter({ hasText: "Proof-Carrying Patch Ledger" })
+    .locator("summary")
+    .first()
+    .click();
   await expect(
     page.getByRole("button", { name: "Verify & replay" }),
   ).toBeEnabled();
@@ -299,13 +382,19 @@ test("explicit property contract enables the real Metamorphic Shield", async ({
   await page.keyboard.type("def normalize(nums):\n    return nums\n");
   await analyze(page);
   await workspace(page, "Contract Studio");
+  await page.getByText("Advanced property checks", { exact: true }).click();
   await page
     .getByRole("button", { name: "Declare sorting contract: normalize" })
     .click();
   await expect(
-    page.getByRole("button", { name: "Generate a new revision" }),
+    page.getByRole("button", { name: "Generate tests" }),
   ).toBeEnabled();
+  await page.getByText("Advanced property checks", { exact: true }).click();
   await page.getByRole("button", { name: "Run Shield" }).click();
+  await expect(
+    page.getByRole("button", { name: "Generate tests" }),
+  ).toBeEnabled();
+  await page.getByText("Advanced property checks", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Run Shield" })).toBeEnabled();
   const shield = page.getByRole("region", { name: "Metamorphic Shield" });
   await expect(shield).toContainText("MEASURED");

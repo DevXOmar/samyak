@@ -695,12 +695,102 @@
           }
         }
       }
+    },
+    "/v1/github/inspect": {
+      "post": {
+        "summary": "Inspect Github",
+        "operationId": "inspect_github_v1_github_inspect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepoResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/github/file": {
+      "post": {
+        "summary": "Github File",
+        "operationId": "github_file_v1_github_file_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
       "AnalysisRequest-Input": {
         "properties": {
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance"
+          },
           "mode": {
             "type": "string",
             "enum": [
@@ -767,6 +857,20 @@
       },
       "AnalysisRequest-Output": {
         "properties": {
+          "provenance": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance"
+          },
           "mode": {
             "type": "string",
             "enum": [
@@ -827,6 +931,7 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
+          "provenance",
           "mode",
           "stdin",
           "source",
@@ -1245,6 +1350,81 @@
         ],
         "title": "Execution"
       },
+      "FileRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 250,
+            "title": "Url"
+          },
+          "sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$",
+            "title": "Sha"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Path"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "sha",
+          "path"
+        ],
+        "title": "FileRequest"
+      },
+      "FileResult": {
+        "properties": {
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "sha": {
+            "type": "string",
+            "title": "Sha"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "functions": {
+            "type": "integer",
+            "title": "Functions"
+          },
+          "classes": {
+            "type": "integer",
+            "title": "Classes"
+          },
+          "caveats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Caveats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repository",
+          "sha",
+          "path",
+          "source",
+          "functions",
+          "classes",
+          "caveats"
+        ],
+        "title": "FileResult"
+      },
       "Finding": {
         "properties": {
           "id": {
@@ -1541,6 +1721,124 @@
           "reviewer"
         ],
         "title": "PropertyConfirmation"
+      },
+      "Recommended": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "blob_sha": {
+            "type": "string",
+            "title": "Blob Sha"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "functions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Functions"
+          },
+          "classes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Classes"
+          },
+          "caveats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Caveats"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path",
+          "size",
+          "blob_sha",
+          "reason",
+          "functions",
+          "classes",
+          "caveats"
+        ],
+        "title": "Recommended"
+      },
+      "RepoRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 250,
+            "title": "Url"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "RepoRequest"
+      },
+      "RepoResult": {
+        "properties": {
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "sha": {
+            "type": "string",
+            "title": "Sha"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/Recommended"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial"
+          },
+          "limits": {
+            "type": "string",
+            "title": "Limits"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "repository",
+          "url",
+          "sha",
+          "files",
+          "partial",
+          "limits"
+        ],
+        "title": "RepoResult"
       },
       "Report": {
         "properties": {

@@ -12,12 +12,12 @@ import {
   FileCode2,
   FlaskConical,
   GitBranch,
+  Github,
   Layers3,
   Maximize2,
   Minimize2,
   Moon,
   Play,
-  RotateCcw,
   Receipt,
   ShieldCheck,
   Sparkles,
@@ -29,7 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/hooks/use-theme";
-import { executionReadyToRerun } from "@/lib/readiness";
+
 import { useCapabilities } from "@/hooks/use-capabilities";
 import { useAnalysis } from "@/hooks/use-analysis";
 import {
@@ -44,7 +44,12 @@ import {
 } from "@/lib/client";
 const RankedSpans = dynamic(() => import("@/components/ranked-spans"));
 const ImpactExplorer = dynamic(() => import("@/components/impact-explorer"));
-const ModelMetrics = dynamic(() => import("@/components/model-metrics"));
+const ContractInvestigation = dynamic(
+  () => import("@/components/contract-investigation"),
+);
+const GithubImport = dynamic(() => import("@/components/github-import"));
+const ModelLab = dynamic(() => import("@/components/model-lab"));
+const HistoricalRerun = dynamic(() => import("@/components/historical-rerun"));
 const Experiment = dynamic(() => import("@/components/intelligence-panel"));
 const CodeEditor = dynamic(() => import("@/components/code-editor"), {
   ssr: false,
@@ -104,6 +109,7 @@ export default function Workbench() {
   const [cursorLine, setCursorLine] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [allMatrixRows, setAllMatrixRows] = useState(false);
+  const [githubOpen, setGithubOpen] = useState(false);
   const [expandedSource, setExpandedSource] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [tab, setTab] = useState("source");
@@ -127,6 +133,7 @@ export default function Workbench() {
         setDialog(null);
         setFullscreen(false);
         setExpandedSource(false);
+        setGithubOpen(false);
       }
     };
     window.addEventListener("keydown", close);
@@ -194,6 +201,7 @@ export default function Workbench() {
       source: a.source,
       tests: a.tests,
       fixture: a.fixture,
+      provenance: a.provenance,
       stdin: a.stdin,
       mode,
     });
@@ -319,6 +327,22 @@ export default function Workbench() {
 
   return (
     <div className="app-shell">
+      {githubOpen ? (
+        <GithubImport
+          dirty={Boolean(a.source.trim())}
+          onClose={() => setGithubOpen(false)}
+          onOpen={(file) => {
+            a.importSource(file.source, file.path, {
+              repository: file.repository,
+              sha: file.sha,
+              path: file.path,
+              caveats: file.caveats.join("; "),
+            });
+            setWorkspace("Workbench");
+            setLine(null);
+          }}
+        />
+      ) : null}
       <header className="topbar">
         <div className="brand">
           <div className="brand-mark">
@@ -437,27 +461,6 @@ export default function Workbench() {
             </Button>
           </div>
         ) : null}
-        {executionReadyToRerun(
-          report?.runner.status,
-          capabilities.status?.runner.status,
-          capabilities.offline,
-        ) && report ? (
-          <div className="notice">
-            <strong>Execution is ready — rerun analysis</strong>
-            <p>
-              This immutable report records an earlier unavailable runner. Live
-              readiness does not change its historical results.
-            </p>
-            <Button
-              disabled={a.busy}
-              onClick={() =>
-                void a.run(`/v1/analyses/${report.job_id}/tests`, {})
-              }
-            >
-              Rerun analysis
-            </Button>
-          </div>
-        ) : null}
         {capabilities.offline ? (
           <div className="notice error" role="status">
             API is offline. Start the local services, then retry.
@@ -521,6 +524,12 @@ export default function Workbench() {
             </Button>
           </div>
         ) : null}
+        {a.provenance ? (
+          <div className="notice">
+            Imported {a.provenance.repository} · {a.provenance.sha.slice(0, 10)}{" "}
+            · {a.provenance.path}. One file only. {a.provenance.caveats}
+          </div>
+        ) : null}
         {a.stale ? (
           <div className="notice" role="status">
             Source changed. Findings, markers, execution output and verdicts are
@@ -543,6 +552,7 @@ export default function Workbench() {
                     "Boundary, not a guess",
                     "Reference oracle → minimal patch",
                     GitBranch,
+                    Github,
                   ],
                   [
                     "average",
@@ -641,7 +651,8 @@ export default function Workbench() {
                       onClick={() => setTab("source")}
                     >
                       <FileCode2 size={13} className="gold" />
-                      {a.fixture ? `${a.fixture}.py` : "submission.py"}
+                      {a.filename ||
+                        (a.fixture ? `${a.fixture}.py` : "submission.py")}
                       {a.stale ? <CircleDot size={8} /> : null}
                     </button>
                     <button
@@ -656,6 +667,15 @@ export default function Workbench() {
                     </button>
                   </div>
                   <div className="flex-row">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Import from GitHub"
+                      disabled={a.busy}
+                      onClick={() => setGithubOpen(true)}
+                    >
+                      <Github size={14} />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -685,6 +705,7 @@ export default function Workbench() {
                 </div>
                 <div className="editor-body">
                   <CodeEditor
+                    modelPath={a.filename || "submission.py"}
                     revealToken={revealToken}
                     height="100%"
                     value={a.source}
@@ -868,16 +889,20 @@ export default function Workbench() {
                     A learned risk is a prediction. Passing recorded tests
                     supports only the tested behavior.
                   </p>
-                  {report?.runner.status === "EXECUTION_UNAVAILABLE" &&
-                  report.functions.length > 0 ? (
-                    <div className="notice mt-3">
-                      Historical job: execution was unavailable. See live
-                      service health for current readiness.
-                    </div>
+                  {report ? (
+                    <HistoricalRerun
+                      key={report.job_id}
+                      job={report.job_id}
+                      historical={report.runner.status}
+                      live={capabilities.status?.runner.status}
+                      offline={capabilities.offline}
+                      busy={a.busy}
+                      rerun={() =>
+                        void a.run(`/v1/analyses/${report.job_id}/tests`, {})
+                      }
+                    />
                   ) : null}
-                  <span className="label text-[8px]">
-                    Docker isolation / development-grade
-                  </span>
+                  <span className="label text-[8px]"></span>
                 </section>
               </aside>
             </div>
@@ -1069,233 +1094,14 @@ export default function Workbench() {
             ) : null}
             {workspace === "Contract Studio" ? (
               <>
-                <div className="page-intro">
-                  <div>
-                    <h2>Counterexample & Contract Studio</h2>
-                    <p className="intro-copy">
-                      A · exact expected behavior / B · justified property / I ·
-                      operational fault / C · exploratory
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={a.busy}
-                    onClick={() =>
-                      void a.run(`/v1/analyses/${report.job_id}/tests`, {})
-                    }
-                  >
-                    <FlaskConical size={13} />
-                    Generate a new revision
-                  </Button>
-                </div>
-                <section className="panel panel-body mb-5">
-                  <div className="flex-row justify-between">
-                    <div>
-                      <h3>A property needs an explicit contract.</h3>
-                      <p className="intro-copy">
-                        Declare one function as an ascending sort of a finite
-                        integer list, preserving every multiplicity. Only then
-                        can the Shield justify B-tier relations.
-                      </p>
-                    </div>
-                    <div className="flex-row">
-                      {report.functions
-                        .filter((f) => f.features.parameters === 1)
-                        .map((f) => (
-                          <Button
-                            key={f.name}
-                            variant="outline"
-                            size="sm"
-                            disabled={a.busy}
-                            onClick={() =>
-                              void a.run(
-                                `/v1/analyses/${report.job_id}/contracts/property`,
-                                {
-                                  function: f.name,
-                                  property: "sorted_multiset",
-                                  reviewer: "workbench-user",
-                                },
-                              )
-                            }
-                          >
-                            Declare sorting contract: {f.name}
-                          </Button>
-                        ))}
-                    </div>
-                  </div>
-                </section>
-                <div className="data-grid mb-5">
-                  {report.inference.map((entry, i) => (
-                    <section className="panel panel-body" key={i}>
-                      <span className="label">Inferred signature</span>
-                      <h3 className="mono mt-3">{String(entry.function)}</h3>
-                      <Json value={entry.parameters || entry.unsupported} />
-                    </section>
-                  ))}
-                </div>
-                <div className="panel table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Input / source</th>
-                        <th>Oracle / domain</th>
-                        <th>Observation</th>
-                        <th>Expected</th>
-                        <th>Next action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {report.tests.map((t) => {
-                        const r = originals.get(t.id);
-                        const proposal = !t.has_expected
-                          ? candidateProposal(t.id)
-                          : null;
-                        return (
-                          <tr key={t.id}>
-                            <td>
-                              <code>
-                                {t.function}({JSON.stringify(t.args)})
-                              </code>
-                              <p className="muted text-[10px] max-w-64 mt-2">
-                                {t.reason}
-                              </p>
-                            </td>
-                            <td>
-                              <Badge>{t.tier}</Badge>
-                              <p className="text-[9px] muted mt-2">
-                                {t.domain}
-                              </p>
-                            </td>
-                            <td>
-                              <Badge tone={observationTone(t, r)}>
-                                {observationLabel(t, r)}
-                              </Badge>
-                              <p className="mono text-[10px] mt-2 max-w-56 break-all">
-                                {observed(r)}
-                              </p>
-                            </td>
-                            <td>
-                              <code>
-                                {t.has_expected
-                                  ? JSON.stringify(t.expected)
-                                  : t.property || "No output oracle"}
-                              </code>
-                            </td>
-                            <td>
-                              <div className="flex flex-col gap-2 items-start">
-                                {proposal ? (
-                                  <>
-                                    <span className="text-[9px] muted">
-                                      Candidate proposes{" "}
-                                      {JSON.stringify(proposal.output)} ·
-                                      heuristic
-                                    </span>
-                                    <div className="flex-row">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={a.busy}
-                                        onClick={() =>
-                                          acceptProposal(t.id, proposal.output)
-                                        }
-                                      >
-                                        Yes, expect{" "}
-                                        {JSON.stringify(proposal.output)}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        disabled={a.busy}
-                                        onClick={() =>
-                                          void a.run(
-                                            `/v1/analyses/${report.job_id}/contracts/decision`,
-                                            {
-                                              test_id: t.id,
-                                              expected: proposal.output,
-                                              reviewer: "workbench-user",
-                                            },
-                                          )
-                                        }
-                                      >
-                                        No
-                                      </Button>
-                                    </div>
-                                  </>
-                                ) : null}
-
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={a.busy}
-                                  onClick={() => confirm(t.id)}
-                                >
-                                  Edit expected
-                                </Button>
-                                {t.domain !== "CONFIRMED" ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    disabled={a.busy}
-                                    onClick={() =>
-                                      void a.run(
-                                        `/v1/analyses/${report.job_id}/contracts/domain`,
-                                        {
-                                          test_ids: [t.id],
-                                          reviewer: "workbench-user",
-                                        },
-                                      )
-                                    }
-                                  >
-                                    Confirm input domain
-                                  </Button>
-                                ) : null}
-                                {details.actions ? (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    disabled={a.busy}
-                                    onClick={() =>
-                                      investigate("replay", { test_id: t.id })
-                                    }
-                                  >
-                                    <RotateCcw size={11} />
-                                    Replay
-                                  </Button>
-                                ) : null}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                <Experiment
+                <ContractInvestigation
                   report={report}
-                  onSource={chooseFinding}
-                  title="Counterexample Studio"
-                  data={details.witness || report.structure.minimal_witness}
-                  action={can("witness") ? "witness" : undefined}
                   busy={a.busy}
-                  run={investigate}
-                />
-                <Experiment
-                  report={report}
+                  run={(path, body) => void a.run(path, body)}
+                  confirm={confirm}
+                  proposal={candidateProposal}
+                  accept={acceptProposal}
                   onSource={chooseFinding}
-                  title="Metamorphic Shield"
-                  data={details.metamorphic}
-                  action={can("metamorphic") ? "metamorphic" : undefined}
-                  busy={a.busy}
-                  run={investigate}
-                />
-                <Experiment
-                  report={report}
-                  onSource={chooseFinding}
-                  title="Replay"
-                  data={details.replay}
-                  busy={a.busy}
-                  run={investigate}
                 />
               </>
             ) : null}
@@ -1536,145 +1342,20 @@ export default function Workbench() {
               </>
             ) : null}
             {workspace === "Model Lab & Vault" ? (
-              <>
-                <div className="data-grid">
-                  <section className="panel panel-body">
-                    <div className="flex-row justify-between">
-                      <h2>Model Lab</h2>
-                      <Badge>
-                        {String(report.model.status || "MODEL_UNAVAILABLE")}
-                      </Badge>
-                    </div>
-                    <p className="intro-copy">
-                      Small held-out cohorts. No measured ML localization
-                      uplift.
-                    </p>
-                    <div className="metric-inline mt-4">
-                      <span>Calibration</span>
-                      <span className="text-[9px]">
-                        {String(report.model.calibration || "UNAVAILABLE")}
-                      </span>
-                    </div>
-                    <p className="hash mt-3">
-                      Model {String(report.model.model_id || "unavailable")}
-                    </p>
-                    <ModelMetrics report={report} />
-                    <details className="mt-5">
-                      <summary>
-                        Full metrics, family confusion matrices & cohort
-                        manifest
-                      </summary>
-                      <Json
-                        value={{
-                          metrics: report.model.metrics,
-                          cohorts: report.model.cohorts,
-                        }}
-                      />
-                    </details>
-                  </section>
-                  <section className="panel panel-body">
-                    <div className="flex-row justify-between">
-                      <h2>Evidence Vault</h2>
-                      <Download size={14} className="gold" />
-                    </div>
-                    <div className="mt-5">
-                      {[
-                        ["Source", report.source_hash],
-                        ["Tests", report.test_revision],
-                        ["Runner", report.runner.digest],
-                        ["Model", report.model.model_id],
-                      ].map(([key, value]) => (
-                        <div className="mb-4" key={String(key)}>
-                          <span className="label">{String(key)}</span>
-                          <p className="hash mt-1">
-                            {String(value || "Unavailable")}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        downloadBundle(
-                          `/api/v1/analyses/${report.job_id}/bundle`,
-                        )
-                      }
-                    >
-                      <Download size={12} />
-                      Download replayable bundle
-                    </Button>
-                    <p className="text-[10px] muted mt-3">
-                      Integrity hashes establish content identity, not proof of
-                      correctness.
-                    </p>
-                  </section>
-                </div>
-                <div className="data-grid mt-5">
-                  <section className="panel panel-body">
-                    <h2 className="mb-5">Historical analogies</h2>
-                    {report.precedents.length ? (
-                      report.precedents.map((p) => (
-                        <details
-                          className="py-3 border-b border-[var(--border)]"
-                          key={String(p.id)}
-                        >
-                          <summary>
-                            <span className="gold mono mr-2">
-                              {(Number(p.similarity) * 100).toFixed(1)}%
-                            </span>
-                            {String(p.edit_summary)
-                              .replaceAll("_", " ")
-                              .toLowerCase()}
-                            <span className="label ml-2">TRAIN ONLY</span>
-                          </summary>
-                          <p className="hash">{String(p.id)}</p>
-                          <pre>{String(p.diff)}</pre>
-                          <p className="hash">{String(p.origin)}</p>
-                        </details>
-                      ))
-                    ) : (
-                      <p className="muted">
-                        No eligible neighbor. Similarity never establishes
-                        correctness.
-                      </p>
-                    )}
-                  </section>
-                  <section className="panel panel-body">
-                    <h2 className="mb-5">Persisted event timeline</h2>
-                    <Timeline events={a.events} />
-                    <details className="mt-5">
-                      <summary>Scope and execution limits</summary>
-                      <Json value={report.limitations} />
-                    </details>
-                  </section>
-                </div>
-                <Experiment
-                  report={report}
-                  onSource={chooseFinding}
-                  title="Novelty Radar"
-                  data={details.novelty}
-                  busy={a.busy}
-                  run={investigate}
-                />
-                <Experiment
-                  report={report}
-                  onSource={chooseFinding}
-                  title="Proof-Carrying Patch Ledger"
-                  data={details.ledger}
-                  action={can("ledger") ? "ledger" : undefined}
-                  busy={a.busy}
-                  run={investigate}
-                />
-                <Experiment
-                  report={report}
-                  onSource={chooseFinding}
-                  title="Semantic Twin Challenge"
-                  data={details.twin}
-                  action={can("twin") ? "twin" : undefined}
-                  busy={a.busy}
-                  run={investigate}
-                />
-              </>
+              <ModelLab
+                report={report}
+                events={a.events}
+                busy={a.busy}
+                run={investigate}
+                onSource={chooseFinding}
+                onAtlas={(at) => {
+                  chooseLine(at);
+                  setWorkspace("Fault Atlas");
+                }}
+                download={() =>
+                  downloadBundle(`/api/v1/analyses/${report.job_id}/bundle`)
+                }
+              />
             ) : null}
           </>
         )}

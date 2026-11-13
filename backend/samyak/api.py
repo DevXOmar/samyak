@@ -1,3 +1,4 @@
+from .github_import import RepoRequest, FileRequest, RepoResult, FileResult
 import asyncio
 import json
 import os
@@ -306,3 +307,17 @@ def openapi_with_events():
 
 
 app.openapi = openapi_with_events
+
+
+@app.post("/v1/github/inspect", response_model=RepoResult)
+def inspect_github(request: RepoRequest):
+    from .github_import import inspect
+
+    return inspect(request)
+
+
+@app.post("/v1/github/file", response_model=FileResult)
+def github_file(request: FileRequest):
+    from .github_import import file
+
+    return file(request)

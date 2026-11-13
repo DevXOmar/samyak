@@ -12,7 +12,7 @@ const entries = (value: unknown) => Object.entries(obj(value));
 const asText = (value: unknown) =>
   typeof value === "string" ? value : JSON.stringify(value);
 const names: Record<string, string> = {
-  witness: "Find smallest witness",
+  witness: "Find smaller witness",
   precedents: "Compare retrieval",
   ledger: "Verify & replay",
   twin: "Run twin challenge",
@@ -151,7 +151,7 @@ export default function IntelligencePanel({
             </div>
             <ArrowRight size={16} className="gold" />
             <div>
-              <span className="label">Smallest supported witness</span>
+              <span className="label">Smaller reproducible witness</span>
               <code>{asText(row.minimal_args)}</code>
             </div>
           </div>

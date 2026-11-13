@@ -125,3 +125,11 @@ Browser tests execute real backend jobs rather than mocked verdicts, including c
 See [USP evidence inventory](docs/USP_EVIDENCE.md) and [seven-minute judge walkthrough](docs/JUDGE_DEMO.md). No new model accuracy, ML localization uplift, external QuixBugs evaluation or production sandbox security is claimed. Property/twin eligibility is intentionally bounded and unsupported paths are explicit.
 
 See [Phase 2 handoff](docs/PHASE2_HANDOFF.md), [Phase 1 handoff](docs/PHASE1_HANDOFF.md), [requirement traceability](docs/TRACEABILITY.md) and [model card](data/models/MODEL_CARD.md).
+
+## Public GitHub file import and concise test investigation
+
+Use the GitHub icon beside file upload, enter a public `https://github.com/OWNER/REPO` URL, inspect the recommendations, then open one file. The importer pins the default branch to a commit, parses bounded regular Python blobs without execution, and reports dependency/partial-tree limits. Opening a file requires explicit replacement approval when source is present and clears fixture tests, stdin and old analysis evidence. Run or Analyze remains an explicit action. This is single-file investigation, not repository-wide execution.
+
+`POST /v1/github/inspect` accepts `{ "url": "https://github.com/TheAlgorithms/Python" }`; `/v1/github/file` accepts that canonical URL, the returned `sha` and a recommended `path`. No token, cloning, package installation or arbitrary URL fetching is used. Cached inspections expire after ten minutes; reinspection resolves expired selections. GitHub rate limits and unavailable dependencies remain visible.
+
+Contract Studio shows failed cases first, with passing/exploratory cases collapsed. Open a case for exact oracle/domain/replay actions, unverified candidate proposals and witness reproduction. Runtime shrinking must preserve exception class, source location and argument types; logical reductions remain inconclusive without a valid reduced-input oracle. The optional sorting Shield is behind Advanced property checks and never assumes a contract. See [local implementation notes](docs/IMPORT_CONTRACT_HANDOFF.md).

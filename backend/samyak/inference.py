@@ -228,7 +228,7 @@ def shrink_fault(source, tests, results, runner, max_attempts=10):
         return {
             "test_id": test.id,
             "minimal_args": test.args,
-            "method": "bounded boundary minimum",
+            "method": "Recorded boundary witness; no global minimum claimed",
             "replayed": bool(observed.repeatable),
             "domain": test.domain,
             "error": observed.error,
@@ -239,8 +239,25 @@ def shrink_fault(source, tests, results, runner, max_attempts=10):
     attempts = 0
     cache = {json.dumps(test.args, sort_keys=True): (True, observed)}
 
+    def shape(value):
+        if isinstance(value, list):
+            return ("list", sorted(set(str(shape(v)) for v in value)))
+        if isinstance(value, dict):
+            return ("dict", sorted((k, str(shape(v))) for k, v in value.items()))
+        return type(value).__name__
+
+    def compatible(original, candidate):
+        if type(original) is not type(candidate):
+            return False
+        if isinstance(original, list):
+            allowed = {str(shape(v)) for v in original}
+            return all(str(shape(v)) in allowed for v in candidate)
+        return shape(original) == shape(candidate)
+
     def predicate(args):
         nonlocal attempts
+        if len(args) != len(test.args) or not all(compatible(a, b) for a, b in zip(test.args, args)):
+            return False
         key = json.dumps(args, sort_keys=True)
         if key in cache:
             return cache[key][0]
@@ -262,6 +279,8 @@ def shrink_fault(source, tests, results, runner, max_attempts=10):
             result.status == "ERROR"
             and result.error
             and result.error.split(":")[0] == observed.error.split(":")[0]
+            and bool(observed.fault_lines)
+            and result.fault_lines == observed.fault_lines
         )
         cache[key] = (matched, result)
         return matched
