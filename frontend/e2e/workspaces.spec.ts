@@ -74,7 +74,9 @@ test("editing, live analysis, exact findings, graph, accepted/rejected diffs and
     process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End",
   );
   await page.keyboard.type("\n# stale now");
-  await expect(page.getByRole("status")).toContainText("Source changed");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Source changed" }),
+  ).toContainText("Source changed");
   await expect(page.getByTestId("verdict")).toContainText("AWAITING ANALYSIS");
   expect(errors).toEqual([]);
 });
@@ -231,9 +233,9 @@ test("SSE transport reconnects without fabricated progress or lost reports", asy
   await page
     .getByRole("button", { name: "Analyze source", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText(
-    "Connection interrupted",
-  );
+  await expect(
+    page.getByRole("status").filter({ hasText: "Connection interrupted" }),
+  ).toContainText("Connection interrupted");
   await expect(
     page.getByRole("button", { name: "Analyze source", exact: true }),
   ).toBeEnabled();

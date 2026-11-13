@@ -10,6 +10,7 @@ import {
 } from "@/lib/client";
 export function useAnalysis() {
   const [source, setSourceState] = useState("");
+  const [stdin, setStdin] = useState("");
   const [tests, setTestsState] = useState<TestCase[]>([]);
   const [contractDirty, setContractDirty] = useState(false);
   const testsVersion = useRef(0);
@@ -138,6 +139,15 @@ export function useAnalysis() {
           if (request) {
             if (!sourceRef.current) setSource(request.source);
             setReport(request);
+            setStdin(
+              String(
+                (
+                  request.intelligence.execution as
+                    | { stdin?: string }
+                    | undefined
+                )?.stdin || "",
+              ),
+            );
             setTestsState(request.tests);
           }
           await watch(current);
@@ -148,7 +158,7 @@ export function useAnalysis() {
   const run = useCallback(
     async (
       path = "/v1/analyses",
-      body: unknown = { source: sourceRef.current, tests, fixture },
+      body: unknown = { source: sourceRef.current, tests, fixture, stdin },
     ) => {
       submittedVersion.current = testsVersion.current;
       setBusy(true);
@@ -162,7 +172,7 @@ export function useAnalysis() {
         setConnection("error");
       }
     },
-    [tests, fixture, watch],
+    [tests, fixture, stdin, watch],
   );
   const load = useCallback(
     async (name: NonNullable<AnalysisRequest["fixture"]>) => {
@@ -172,6 +182,7 @@ export function useAnalysis() {
         active.current = null;
         localStorage.removeItem("samyak-job-v1");
         setSource(data.source);
+        setStdin(data.stdin || "");
         setTestsState(data.tests || []);
         setContractDirty(false);
         setFixture(name);
@@ -189,14 +200,32 @@ export function useAnalysis() {
   return {
     source,
     setSource,
+    stdin,
+    setStdin,
     tests,
     setTests,
     fixture,
     setFixture,
     job,
     report,
-    visibleReport: report?.source === source && !contractDirty ? report : null,
-    stale: !!report && (report.source !== source || contractDirty),
+    visibleReport:
+      report?.source === source &&
+      !contractDirty &&
+      String(
+        (report.intelligence.execution as { stdin?: string } | undefined)
+          ?.stdin || "",
+      ) === stdin &&
+      (!job || job.id === report.job_id)
+        ? report
+        : null,
+    stale:
+      !!report &&
+      (report.source !== source ||
+        contractDirty ||
+        String(
+          (report.intelligence.execution as { stdin?: string } | undefined)
+            ?.stdin || "",
+        ) !== stdin),
     events,
     busy,
     error,
@@ -208,6 +237,12 @@ export function useAnalysis() {
     restore: () => {
       if (report) {
         setSource(report.source);
+        setStdin(
+          String(
+            (report.intelligence.execution as { stdin?: string } | undefined)
+              ?.stdin || "",
+          ),
+        );
         setTestsState(report.tests);
         setContractDirty(false);
       }

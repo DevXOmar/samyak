@@ -14,6 +14,7 @@ export default function CodeEditor({
   theme = "light",
   height = "100%",
   onAnalyze,
+  onRun,
   onSelect,
   readOnly = false,
   modelPath = "submission.py",
@@ -26,6 +27,7 @@ export default function CodeEditor({
   theme?: "light" | "dark";
   height?: string;
   onAnalyze?: () => void;
+  onRun?: () => void;
   onSelect?: (line: number) => void;
   readOnly?: boolean;
   modelPath?: string;
@@ -36,10 +38,10 @@ export default function CodeEditor({
   const lastRevealed = useRef<string>("");
   const decorations = useRef<editor.IEditorDecorationsCollection | null>(null);
   const disposables = useRef<IDisposable[]>([]);
-  const handlers = useRef({ onAnalyze, onSelect });
+  const handlers = useRef({ onAnalyze, onRun, onSelect });
   useEffect(() => {
-    handlers.current = { onAnalyze, onSelect };
-  }, [onAnalyze, onSelect]);
+    handlers.current = { onAnalyze, onRun, onSelect };
+  }, [onAnalyze, onRun, onSelect]);
   const mark = useCallback(() => {
     const model = instance.current?.getModel();
     const m = monaco.current;
@@ -57,7 +59,13 @@ export default function CodeEditor({
             ? sourceColumn(value, f.span.start_line, f.span.start_col) + 1
             : 1,
         ),
-        severity: f.evidence === "FAULT_CONFIRMED" ? 8 : 4,
+        severity: [
+          "FAULT_CONFIRMED",
+          "OBSERVED_RUNTIME_FAULT",
+          "SYNTAX_ERROR",
+        ].includes(f.evidence)
+          ? 8
+          : 4,
         message: `${f.rule_id}\n${f.explanation}\n${f.evidence} · ${f.qualification}`,
       })),
     );
@@ -116,8 +124,14 @@ export default function CodeEditor({
         e.addAction({
           id: "samyak.analyze",
           label: "SAMYAK: Analyze source",
-          keybindings: [m.KeyMod.CtrlCmd | m.KeyCode.Enter],
+          keybindings: [m.KeyMod.CtrlCmd | m.KeyMod.Shift | m.KeyCode.Enter],
           run: () => handlers.current.onAnalyze?.(),
+        });
+        e.addAction({
+          id: "samyak.run",
+          label: "SAMYAK: Run Python script",
+          keybindings: [m.KeyMod.CtrlCmd | m.KeyCode.Enter],
+          run: () => handlers.current.onRun?.(),
         });
         disposables.current.push(
           e.onMouseDown((event) => {

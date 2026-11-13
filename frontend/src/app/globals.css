@@ -1046,3 +1046,151 @@ td code {
     grid-template-columns: 1fr;
   }
 }
+
+/* The output viewer shares the editor's matte surface; it never exposes a shell. */
+.script-input {
+  border-top: 1px solid var(--border);
+  padding: 9px 16px;
+  font-size: 11px;
+}
+.script-input summary {
+  cursor: pointer;
+}
+.script-input summary span {
+  margin-left: 8px;
+  font-size: 10px;
+}
+.script-input textarea {
+  width: 100%;
+  min-height: 64px;
+  margin-top: 10px;
+  padding: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono), monospace;
+  resize: vertical;
+}
+.execution-panel {
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+.execution-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+.execution-toolbar [role="tablist"] {
+  display: flex;
+  min-width: 0;
+  gap: 12px;
+}
+.execution-toolbar [role="tab"] {
+  padding: 11px 2px 9px;
+  border-bottom: 2px solid transparent;
+  font-size: 11px;
+  color: var(--muted);
+}
+.execution-toolbar [aria-selected="true"] {
+  color: var(--ink);
+  border-color: var(--gold);
+}
+.execution-resize {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 14px;
+  color: var(--muted);
+  font:
+    9px var(--font-mono),
+    monospace;
+}
+.execution-resize label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.execution-resize input {
+  width: 65px;
+  accent-color: var(--gold);
+}
+.execution-views {
+  min-height: 120px;
+  max-height: 450px;
+}
+.execution-views [role="tabpanel"] {
+  height: 100%;
+  overflow: auto;
+}
+.execution-views [role="tabpanel"]:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+}
+.execution-terminal {
+  flex: 1;
+  min-height: 65px;
+  padding: 8px 14px 14px;
+  overflow: hidden;
+}
+.execution-message {
+  padding: 10px 14px 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.execution-trace {
+  padding: 10px 14px;
+  font:
+    11px/1.8 var(--font-mono),
+    monospace;
+}
+.execution-trace pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+}
+.trace-link {
+  color: var(--gold);
+  text-decoration: underline;
+  display: block;
+}
+.execution-problem {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+}
+.editor-fullscreen {
+  display: flex;
+  flex-direction: column;
+}
+.editor-fullscreen .editor-body {
+  flex: 1;
+  min-height: 120px;
+  height: auto;
+}
+.editor-fullscreen .execution-panel,
+.editor-fullscreen .editor-footer,
+.editor-fullscreen .editor-tabs,
+.editor-fullscreen .script-input {
+  flex-shrink: 0;
+}
+@media (max-width: 500px) {
+  .execution-toolbar [role="tablist"] {
+    gap: 9px;
+  }
+  .execution-toolbar [role="tab"] {
+    font-size: 10px;
+  }
+  .execution-resize {
+    font-size: 8px;
+  }
+  .editor-footer {
+    flex-wrap: wrap;
+  }
+}

@@ -45,6 +45,9 @@ const Experiment = dynamic(() => import("@/components/intelligence-panel"));
 const CodeEditor = dynamic(() => import("@/components/code-editor"), {
   ssr: false,
 });
+const ExecutionPanel = dynamic(() => import("@/components/execution-panel"), {
+  ssr: false,
+});
 const Atlas = dynamic(() => import("@/components/fault-atlas"), { ssr: false });
 const PatchDiff = dynamic(() => import("@/components/patch-diff"), {
   ssr: false,
@@ -72,7 +75,7 @@ function Json({ value }: { value: unknown }) {
 }
 function Empty({
   title = "Your next investigation starts here",
-  copy = "Paste a Python function, load a source fixture, or upload a .py file. Analyze to build a live evidence trail.",
+  copy = "Paste Python source, load a source fixture, or upload a .py file. Analyze to build a live evidence trail.",
 }: {
   title?: string;
   copy?: string;
@@ -98,6 +101,7 @@ export default function Workbench() {
   const [selected, setSelected] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [tab, setTab] = useState("source");
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [testDraft, setTestDraft] = useState("");
   const [dialog, setDialog] = useState<
     "tests" | "confirmation" | "candidate" | null
@@ -173,6 +177,20 @@ export default function Workbench() {
     a.setSource(value);
     setLine(null);
   };
+  function submitSource(mode: "ANALYZE" | "SCRIPT") {
+    if (a.busy || !a.source.trim()) return;
+    setSelected(0);
+    setSuggestion(
+      /(^|\n)\s*(async\s+)?def\s+/.test(a.source) ? null : a.source,
+    );
+    void a.run("/v1/analyses", {
+      source: a.source,
+      tests: a.tests,
+      fixture: a.fixture,
+      stdin: a.stdin,
+      mode,
+    });
+  }
   const selectedIndex = report?.candidates[selected] ? selected : 0;
   const candidate = report?.candidates[selected] || report?.candidates[0];
   const finding =
@@ -370,20 +388,27 @@ export default function Workbench() {
             Recheck
           </Button>
         </div>
-        {report && report.functions.length === 0 ? (
-          <div className="notice">
-            No analyzable Python functions. Define a Python function to obtain
-            function risk, generated inputs and repair evidence. Module-level
-            statements such as print calls have no function risk score.
+        {suggestion === a.source ? (
+          <div className="notice flex-row" role="status">
+            <span>
+              Your script is running. Adding functions and tests can unlock
+              deeper ML risk scoring, bug localization and repair validation.
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Dismiss script suggestion"
+              onClick={() => setSuggestion(null)}
+            >
+              <X size={14} />
+            </Button>
           </div>
         ) : null}
         {executionReadyToRerun(
           report?.runner.status,
           capabilities.status?.runner.status,
           capabilities.offline,
-        ) &&
-        report &&
-        report.functions.length > 0 ? (
+        ) && report ? (
           <div className="notice">
             <strong>Execution is ready — rerun analysis</strong>
             <p>
@@ -465,8 +490,8 @@ export default function Workbench() {
         ) : null}
         {a.stale ? (
           <div className="notice" role="status">
-            Source changed. Findings, markers and verdicts are invalidated for
-            this buffer.
+            Source changed. Findings, markers, execution output and verdicts are
+            invalidated for this buffer.
             <Button size="sm" variant="ghost" onClick={() => a.restore()}>
               Restore analyzed snapshot
             </Button>
@@ -604,7 +629,8 @@ export default function Workbench() {
                     findings={report?.findings || EMPTY}
                     line={line}
                     theme={theme}
-                    onAnalyze={() => !a.busy && a.source.trim() && void a.run()}
+                    onAnalyze={() => submitSource("ANALYZE")}
+                    onRun={() => submitSource("SCRIPT")}
                     onSelect={setCursorLine}
                   />
                 </div>
@@ -616,15 +642,26 @@ export default function Workbench() {
                     <span className="desktop-only ml-3">UTF-8 / Python</span>
                   </span>
                   <div className="flex-row">
-                    <span className="desktop-only muted flex-row">
-                      <Command size={11} />↵
+                    <span
+                      className="desktop-only muted flex-row"
+                      title="Run: ⌘/Ctrl+Enter · Analyze: ⌘/Ctrl+Shift+Enter"
+                    >
+                      <Command size={11} />↵ Run
                     </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={a.busy || !a.source.trim()}
+                      onClick={() => submitSource("SCRIPT")}
+                    >
+                      <Play size={12} />
+                      Run
+                    </Button>
                     <Button
                       size="sm"
                       disabled={a.busy || !a.source.trim()}
                       onClick={() => {
-                        setSelected(0);
-                        void a.run();
+                        submitSource("ANALYZE");
                       }}
                     >
                       <Play size={12} fill="currentColor" />
@@ -632,6 +669,31 @@ export default function Workbench() {
                     </Button>
                   </div>
                 </div>
+                <details className="script-input">
+                  <summary>
+                    Standard input{" "}
+                    <span className="muted">
+                      optional · bounded to 8,000 characters
+                    </span>
+                  </summary>
+                  <textarea
+                    aria-label="Script standard input"
+                    value={a.stdin}
+                    maxLength={8000}
+                    onChange={(e) => a.setStdin(e.target.value)}
+                    placeholder="Input for input() calls; include line breaks"
+                  />
+                </details>
+                <ExecutionPanel
+                  key={`${report?.job_id || (a.stale ? "stale" : a.busy ? "busy" : "empty")}`}
+                  report={report}
+                  busy={a.busy}
+                  stage={a.job?.stage}
+                  jobStatus={a.job?.status}
+                  stale={a.stale}
+                  theme={theme}
+                  onSelect={chooseFinding}
+                />
               </section>
               <aside className="evidence-rail">
                 <section className="panel rail-section">
@@ -641,6 +703,11 @@ export default function Workbench() {
                       <CircleDot size={12} />
                     </span>
                   </div>
+                  {report && !report.functions.length ? (
+                    <p className="text-[10px] muted mt-3">
+                      ML risk: Not applicable to script-only source
+                    </p>
+                  ) : null}
                   {finding ? (
                     <>
                       <div className="flex-row mt-4">
@@ -665,17 +732,26 @@ export default function Workbench() {
                       </p>
                       {ranked
                         ? Object.entries(
-                            ranked.signals as Record<string, number | null>,
+                            ranked.signals as Record<
+                              string,
+                              number | boolean | null
+                            >,
                           ).map(([key, value]) => (
                             <div className="signal-row" key={key}>
                               <span>{key.replaceAll("_", " ")}</span>
                               <div className="signal-bar">
                                 <i
-                                  style={{ width: `${(value || 0) * 100}%` }}
+                                  style={{
+                                    width: `${(typeof value === "number" ? value : value === true ? 1 : 0) * 100}%`,
+                                  }}
                                 />
                               </div>
                               <code>
-                                {value == null ? "—" : value.toFixed(2)}
+                                {value == null
+                                  ? "—"
+                                  : typeof value === "number"
+                                    ? value.toFixed(2)
+                                    : String(value)}
                               </code>
                             </div>
                           ))
@@ -701,7 +777,11 @@ export default function Workbench() {
                       </p>
                       <div className="metric-inline mt-4">
                         <span className="muted">Modeled function risk</span>
-                        <strong>{riskLabel(report?.overall_risk)}</strong>
+                        <strong>
+                          {report && !report.functions.length
+                            ? "Not applicable to script-only source"
+                            : riskLabel(report?.overall_risk)}
+                        </strong>
                       </div>
                       <div className="metric-inline">
                         <span className="muted">Severity</span>

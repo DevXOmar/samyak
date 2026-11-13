@@ -13,7 +13,7 @@ from .ledger import ledger_metadata
 from .twins import semantic_twin
 from .atlas import syntax_tree
 from .structure import analyze, localize
-from .scripts import module_facts, execute_script
+from .scripts import module_facts, execute_script, annotate_execution
 
 
 def scanners(source):
@@ -104,7 +104,7 @@ def run_pipeline(ident, payload, stage, parent=None):
             "Python is the supported language. printf is a C library function, not a Python builtin; no C compilation or translation is performed."
         )
     report.findings.extend(module_findings)
-    if request.mode == "SCRIPT" or module["statement_count"]:
+    if request.mode == "SCRIPT" or module["statement_count"] or not report.functions:
         stage("execution", "Executing Python script as __main__ in restricted Docker")
         report.script_result, report.runner = execute_script(source, request.stdin)
         report.intelligence["execution"] = {
@@ -113,6 +113,7 @@ def run_pipeline(ident, payload, stage, parent=None):
             "domain": "UNCONFIRMED",
             "oracle": None,
         }
+    module_ranks = annotate_execution(report, module_findings)
     if request.mode == "SCRIPT" or not report.functions:
         model = ModelService()
         if report.functions:
@@ -121,49 +122,10 @@ def run_pipeline(ident, payload, stage, parent=None):
         report.model = dict(model.meta)
         report.overall_risk = max((f.risk for f in report.functions if f.risk is not None), default=None)
         report.model["applicability"] = "FUNCTIONS_ONLY" if report.functions else "NOT_APPLICABLE_SCRIPT_ONLY"
-        if report.script_result is None:
-            report.script_result, report.runner = execute_script(source, request.stdin)
         result = report.script_result
         report.verdict = result.status
-        report.severity = "MEDIUM" if report.findings or result.fault_lines else None
-        for line in dict.fromkeys(result.fault_lines):
-            owner = next(
-                (f.name for f in report.functions if f.span.start_line <= line <= f.span.end_line), "<module>"
-            )
-            source_line = source.splitlines()[line - 1] if line <= len(source.splitlines()) else ""
-            report.findings.append(
-                Finding(
-                    id=f"script-runtime:{line}",
-                    rule_id="RUNTIME_EXCEPTION",
-                    function=owner,
-                    span=Span(start_line=line, end_line=line, start_col=0, end_col=len(source_line.encode())),
-                    explanation=result.error or result.status,
-                    evidence="OBSERVED_RUNTIME_FAULT",
-                    strength=1.0,
-                    family="OTHER",
-                    qualification="Observed for this exact stdin. Input domain is unconfirmed; no correctness claim.",
-                )
-            )
-            report.localization.append(
-                {
-                    "line": line,
-                    "function": "<module>",
-                    "score": 1.0,
-                    "signals": {"runtime_fault": True},
-                    "mode": "OBSERVED_RUNTIME_FAULT",
-                }
-            )
-        report.localization.extend(
-            {
-                "line": f.span.start_line,
-                "function": "<module>",
-                "score": f.strength,
-                "signals": {"rule_strength": f.strength, "model_risk": None},
-                "mode": "STATIC_HYPOTHESIS",
-            }
-            for f in module_findings
-            if f.span.start_line not in result.fault_lines
-        )
+        report.severity = "MEDIUM" if report.findings else None
+        report.localization = module_ranks
         stage(
             "localization",
             "Recording static hypotheses and exact observed traceback lines; no assumed input domain",
@@ -317,7 +279,10 @@ def run_pipeline(ident, payload, stage, parent=None):
     report.localization = localize(
         report.structure, report.functions, report.findings, report.tests, report.original_results
     )
+    report.localization.extend(module_ranks)
     for finding in report.findings:
+        if finding.id.startswith("script-runtime:"):
+            continue
         confirmed = [
             (t, r)
             for t, r in zip(report.tests, report.original_results)

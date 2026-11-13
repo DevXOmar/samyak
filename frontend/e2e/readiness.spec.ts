@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-test("module-only input explains missing function evidence and live services stay separate", async ({
+test("module-only input runs without fabricating function risk and live services stay separate", async ({
   page,
 }) => {
   await page.goto("/");
@@ -10,7 +10,9 @@ test("module-only input explains missing function evidence and live services sta
     .getByRole("button", { name: "Analyze source", exact: true })
     .click();
   await expect(
-    page.getByText(/No analyzable Python functions\./),
+    page.getByText("ML risk: Not applicable to script-only source", {
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("status", { name: "Live service health" }),

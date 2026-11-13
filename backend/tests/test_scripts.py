@@ -136,3 +136,48 @@ def test_script_observation_does_not_change_models_and_rerun_is_immutable(client
     assert new["parent_id"] == old["job_id"] and new["script_result"]["stdout"] == "one\n"
     assert client.get(f"/v1/analyses/{old['job_id']}/report").json() == old
     assert digest(json.dumps(ModelService().meta, sort_keys=True)) == before
+
+
+def test_script_container_boundary_matches_function_boundary(isolated, monkeypatch):
+    from samyak.contracts import TestCase
+
+    monkeypatch.setenv("SAMYAK_TEST_SECRET", "must-not-enter-container")
+    # Deliberately bypass source allowlist to verify the Docker boundary itself.
+    source = """import os, socket, json
+checks = {"nonroot": os.getuid() == 10001, "secret_absent": "SAMYAK_TEST_SECRET" not in os.environ,
+          "socket_absent": not os.path.exists("/var/run/docker.sock")}
+try:
+    open("/root-write-test", "w").write("no")
+    checks["readonly"] = False
+except OSError:
+    checks["readonly"] = True
+try:
+    socket.create_connection(("1.1.1.1", 53), timeout=.1)
+    checks["network_off"] = False
+except OSError:
+    checks["network_off"] = True
+print(json.dumps(checks))"""
+    result = DockerRunner().run(source, [TestCase(id="script", function="__script__", mode="SCRIPT")])[0]
+    assert result.status == "EXECUTED_SUCCESSFULLY" and all(json.loads(result.stdout).values())
+
+
+def test_script_stderr_and_exit_status(isolated):
+    from samyak.contracts import TestCase
+
+    # Trusted harness integration probes; public source policy still rejects sys.
+    result = DockerRunner().run(
+        'import sys\nprint("detail", file=sys.stderr)\nraise SystemExit(3)',
+        [TestCase(id="script", function="__script__", mode="SCRIPT")],
+    )[0]
+    assert result.status == "ERROR" and result.exit_code == 3
+    assert result.stderr == "detail\n" and result.fault_lines == [3]
+    assert "SystemExit: 3" in result.traceback
+
+
+def test_analyzed_main_script_keeps_runtime_localization_and_function_models(client, isolated):
+    report = submit(client, 'def greet():\n    return 7\nif __name__ == "__main__":\n    missing()')
+    assert report["script_result"]["status"] == "ERROR"
+    assert report["functions"][0]["risk"] is not None
+    assert any(f["id"] == "script-runtime:4" for f in report["findings"])
+    assert any(r["line"] == 4 and r["mode"] == "OBSERVED_RUNTIME_FAULT" for r in report["localization"])
+    assert not report["verdict"].startswith("VALIDATED")
