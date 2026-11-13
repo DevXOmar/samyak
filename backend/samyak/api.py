@@ -51,7 +51,7 @@ def health():
 
 @app.get("/v1/fixtures/{name}", response_model=AnalysisRequest)
 def get_fixture(name: str):
-    if name not in {"binary_search", "average", "caller_regression"}:
+    if name not in {"binary_search", "average", "caller_regression", "unfamiliar"}:
         raise HTTPException(404, "Unknown source fixture")
     return fixture(name)
 
@@ -176,7 +176,11 @@ def confirm_domain(ident: str, confirmation: DomainConfirmation):
 @app.post("/v1/analyses/{ident}/investigate", response_model=Job, status_code=202)
 def investigate(ident: str, request: InvestigationRequest):
     previous = get_report(ident)
-    if request.test_id and request.test_id not in {t["id"] for t in previous["tests"]}:
+    known_ids = {t["id"] for t in previous["tests"]}
+    witness_id = previous.get("intelligence", {}).get("witness", {}).get("test", {}).get("id")
+    if witness_id:
+        known_ids.add(witness_id)
+    if request.test_id and request.test_id not in known_ids:
         raise HTTPException(422, "Unknown recorded test")
     payload = store().request(ident)
     payload["investigation"] = request.model_dump()

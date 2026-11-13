@@ -98,21 +98,35 @@ def run_investigation(ident, payload, previous, stage):
     report.runner = runner.manifest
     if action == "replay":
         test = next((t for t in report.tests if t.id == payload["investigation"].get("test_id")), None)
-        if test is None:
+        saved_witness = report.intelligence.get("witness", {})
+        if test is None and saved_witness.get("test", {}).get("id") == payload["investigation"].get(
+            "test_id"
+        ):
+            test = TestCase.model_validate(saved_witness["test"])
+            old = saved_witness.get("result")
+        else:
+            old = next(
+                (r.model_dump() for r in report.original_results if test and r.test_id == test.id), None
+            )
+        if test is None or old is None:
             report.intelligence["replay"] = {
                 "status": "NOT_SUPPORTED",
-                "reason": "Select a recorded test to replay",
+                "reason": "Select a recorded test or minimized witness to replay",
             }
         else:
+            from .contracts import Execution
+
             stage("execution", f"Replaying exact {test.function} input in restricted Docker")
             result = runner.run(report.source, [test])[0]
-            old = next(r for r in report.original_results if r.test_id == test.id)
             report.intelligence["replay"] = {
-                "status": "MATCH" if signature(result) == signature(old) else "MISMATCH",
+                "status": "MATCH"
+                if signature(result) == signature(Execution.model_validate(old))
+                else "MISMATCH",
                 "test": test.model_dump(),
                 "result": result.model_dump(),
                 "runner_digest": runner.manifest["digest"],
             }
+
     elif action == "witness":
         stage("execution", "Reproducing and minimizing actual failures; oracle/domain scope is preserved")
         report.intelligence["witness"] = witnessed_case(report, runner)

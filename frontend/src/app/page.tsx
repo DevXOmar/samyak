@@ -38,6 +38,7 @@ import {
   type TestCase,
   type AnalysisRequest,
 } from "@/lib/client";
+const Experiment = dynamic(() => import("@/components/intelligence-panel"));
 const CodeEditor = dynamic(() => import("@/components/code-editor"), {
   ssr: false,
 });
@@ -79,47 +80,6 @@ function Empty({
       <h2>{title}</h2>
       <p>{copy}</p>
     </div>
-  );
-}
-function Experiment({
-  title,
-  data,
-  action,
-  busy,
-  run,
-}: {
-  title: string;
-  data: unknown;
-  action?: string;
-  busy: boolean;
-  run: (action: string) => void;
-}) {
-  const row = data as Record<string, unknown> | undefined;
-  if (!row) return null;
-  return (
-    <section className="panel panel-body experiment">
-      <header>
-        <h2>{title}</h2>
-        {action ? (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={() => run(action)}
-          >
-            <Play size={12} />
-            Run {title}
-          </Button>
-        ) : null}
-      </header>
-      {row.status ? (
-        <Badge tone={tone(String(row.status))}>{String(row.status)}</Badge>
-      ) : null}
-      {row.reason ? (
-        <p className="muted text-xs">{String(row.reason)}</p>
-      ) : null}
-      <Json value={data} />
-    </section>
   );
 }
 
@@ -208,6 +168,37 @@ export default function Workbench() {
     setConfirmId(id);
     setExpected(test.has_expected ? JSON.stringify(test.expected) : "");
     setDialog("confirmation");
+  }
+  function candidateProposal(id: string) {
+    if (!report) return null;
+    const proposed = report.candidates
+      .flatMap((c) => c.results)
+      .find((r) => r.test_id === id && r.status === "PASS");
+    if (!proposed) return null;
+    const declined =
+      Array.isArray(report.intelligence.contract_decisions) &&
+      (
+        report.intelligence.contract_decisions as {
+          test_id: string;
+          expected: unknown;
+        }[]
+      ).some(
+        (d) =>
+          d.test_id === id &&
+          JSON.stringify(d.expected) === JSON.stringify(proposed.output),
+      );
+    return declined ? null : proposed;
+  }
+  function acceptProposal(id: string, output: unknown) {
+    const t = report?.tests.find((t) => t.id === id);
+    if (report && t)
+      void a.run(`/v1/analyses/${report.job_id}/contracts/confirm`, {
+        function: t.function,
+        args: t.args,
+        kwargs: t.kwargs,
+        expected: output,
+        reviewer: "workbench-user",
+      });
   }
   function submitConfirmation() {
     if (!report || !confirmation) return;
@@ -380,15 +371,18 @@ export default function Workbench() {
                   <ArrowUpRight size={12} className="muted ml-auto shrink-0" />
                 </button>
               ))}
-              <div className="panel demo-card">
+              <button
+                className="panel demo-card"
+                disabled={a.busy}
+                onClick={() => void load("unfamiliar")}
+              >
                 <Sparkles size={17} className="demo-icon" />
                 <div>
-                  <strong>Bring your own question</strong>
-                  <span>
-                    Paste or upload real Python. Nothing is precomputed.
-                  </span>
+                  <strong>Correct, but suspicious</strong>
+                  <span>Novelty signals → restraint → abstention</span>
                 </div>
-              </div>
+                <ArrowUpRight size={12} className="muted ml-auto shrink-0" />
+              </button>
             </div>
             <div className="panel workflow" aria-live="polite">
               {STAGES.map(([stage, label]) => {
@@ -745,6 +739,8 @@ export default function Workbench() {
                   </section>
                 </div>
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Blast radius"
                   data={details.blast_radius}
                   busy={a.busy}
@@ -774,6 +770,42 @@ export default function Workbench() {
                     Generate a new revision
                   </Button>
                 </div>
+                <section className="panel panel-body mb-5">
+                  <div className="flex-row justify-between">
+                    <div>
+                      <h3>A property needs an explicit contract.</h3>
+                      <p className="intro-copy">
+                        Declare one function as an ascending sort of a finite
+                        integer list, preserving every multiplicity. Only then
+                        can the Shield justify B-tier relations.
+                      </p>
+                    </div>
+                    <div className="flex-row">
+                      {report.functions
+                        .filter((f) => f.features.parameters === 1)
+                        .map((f) => (
+                          <Button
+                            key={f.name}
+                            variant="outline"
+                            size="sm"
+                            disabled={a.busy}
+                            onClick={() =>
+                              void a.run(
+                                `/v1/analyses/${report.job_id}/contracts/property`,
+                                {
+                                  function: f.name,
+                                  property: "sorted_multiset",
+                                  reviewer: "workbench-user",
+                                },
+                              )
+                            }
+                          >
+                            Declare sorting contract: {f.name}
+                          </Button>
+                        ))}
+                    </div>
+                  </div>
+                </section>
                 <div className="data-grid mb-5">
                   {report.inference.map((entry, i) => (
                     <section className="panel panel-body" key={i}>
@@ -797,6 +829,9 @@ export default function Workbench() {
                     <tbody>
                       {report.tests.map((t) => {
                         const r = originals.get(t.id);
+                        const proposal = !t.has_expected
+                          ? candidateProposal(t.id)
+                          : null;
                         return (
                           <tr key={t.id}>
                             <td>
@@ -830,6 +865,46 @@ export default function Workbench() {
                             </td>
                             <td>
                               <div className="flex flex-col gap-2 items-start">
+                                {proposal ? (
+                                  <>
+                                    <span className="text-[9px] muted">
+                                      Candidate proposes{" "}
+                                      {JSON.stringify(proposal.output)} ·
+                                      heuristic
+                                    </span>
+                                    <div className="flex-row">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={a.busy}
+                                        onClick={() =>
+                                          acceptProposal(t.id, proposal.output)
+                                        }
+                                      >
+                                        Yes, expect{" "}
+                                        {JSON.stringify(proposal.output)}
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={a.busy}
+                                        onClick={() =>
+                                          void a.run(
+                                            `/v1/analyses/${report.job_id}/contracts/decision`,
+                                            {
+                                              test_id: t.id,
+                                              expected: proposal.output,
+                                              reviewer: "workbench-user",
+                                            },
+                                          )
+                                        }
+                                      >
+                                        No
+                                      </Button>
+                                    </div>
+                                  </>
+                                ) : null}
+
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -878,6 +953,8 @@ export default function Workbench() {
                   </table>
                 </div>
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Counterexample Studio"
                   data={details.witness || report.structure.minimal_witness}
                   action={can("witness") ? "witness" : undefined}
@@ -885,6 +962,8 @@ export default function Workbench() {
                   run={investigate}
                 />
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Metamorphic Shield"
                   data={details.metamorphic}
                   action={can("metamorphic") ? "metamorphic" : undefined}
@@ -892,6 +971,8 @@ export default function Workbench() {
                   run={investigate}
                 />
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Replay"
                   data={details.replay}
                   busy={a.busy}
@@ -1075,18 +1156,24 @@ export default function Workbench() {
                   />
                 )}
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Repair Tournament"
                   data={details.tournament}
                   busy={a.busy}
                   run={investigate}
                 />
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Repair Risk Budget"
                   data={details.risk_budget}
                   busy={a.busy}
                   run={investigate}
                 />
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Precedent comparison"
                   data={details.precedents}
                   action={can("precedents") ? "precedents" : undefined}
@@ -1207,12 +1294,16 @@ export default function Workbench() {
                   </section>
                 </div>
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Novelty Radar"
                   data={details.novelty}
                   busy={a.busy}
                   run={investigate}
                 />
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Proof-Carrying Patch Ledger"
                   data={details.ledger}
                   action={can("ledger") ? "ledger" : undefined}
@@ -1220,6 +1311,8 @@ export default function Workbench() {
                   run={investigate}
                 />
                 <Experiment
+                  report={report}
+                  onSource={chooseFinding}
                   title="Semantic Twin Challenge"
                   data={details.twin}
                   action={can("twin") ? "twin" : undefined}

@@ -270,7 +270,7 @@ export interface components {
             /** Tests */
             tests?: components["schemas"]["TestCase-Input"][];
             /** Fixture */
-            fixture?: ("binary_search" | "average" | "caller_regression") | null;
+            fixture?: ("binary_search" | "average" | "caller_regression" | "unfamiliar") | null;
             /** Property Contracts */
             property_contracts?: {
                 [key: string]: "sorted_multiset";
@@ -283,7 +283,7 @@ export interface components {
             /** Tests */
             tests: components["schemas"]["TestCase-Output"][];
             /** Fixture */
-            fixture: ("binary_search" | "average" | "caller_regression") | null;
+            fixture: ("binary_search" | "average" | "caller_regression" | "unfamiliar") | null;
             /** Property Contracts */
             property_contracts: {
                 [key: string]: "sorted_multiset";

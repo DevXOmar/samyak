@@ -10,6 +10,8 @@ from .runner import DockerRunner
 from .store import digest
 from .impact import enrich_tournament
 from .ledger import ledger_metadata
+from .twins import semantic_twin
+from .atlas import syntax_tree
 from .structure import analyze, localize
 
 
@@ -71,9 +73,16 @@ def run_pipeline(ident, payload, stage, parent=None):
         report.limitations.append(str(exc))
         outputs(report)
         return report
-    report.intelligence["actions"] = ["replay", "witness", "precedents", "ledger"]
+    report.structure["syntax_tree"] = syntax_tree(source)
+    report.intelligence["actions"] = ["replay", "witness", "precedents", "ledger", "twin", "metamorphic"]
     report.intelligence["contract_decisions"] = payload.get("decisions", [])
     report.intelligence["property_confirmations"] = payload.get("property_confirmations", [])
+    report.intelligence["metamorphic"] = {
+        "status": "NOT_RUN" if request.property_contracts else "NOT_SUPPORTED",
+        "reason": "Explicit sorting contract available; run transformed executions"
+        if request.property_contracts
+        else "Declare a sorting contract to enable justified metamorphic checks",
+    }
     report.scanners = scanners(source)
     stage(
         "prediction", "Loading independently trained binary and family models and train-only precedent index"
@@ -236,8 +245,27 @@ def run_pipeline(ident, payload, stage, parent=None):
                 ),
                 "INCONCLUSIVE_NO_OUTPUT_ORACLE",
             )
+    if (
+        not blocked
+        and not report.candidates
+        and any(
+            t.domain == "CONFIRMED" and t.tier in {"A", "B", "I"} and r.status in {"FAIL", "ERROR"}
+            for t, r in zip(report.tests, report.original_results)
+        )
+    ):
+        report.verdict = "UNRESOLVED"
     enrich_tournament(report)
     report.intelligence["ledger"] = ledger_metadata(report)
+    eligibility = semantic_twin(source)
+    report.intelligence["twin"] = (
+        {
+            "status": "NOT_RUN",
+            "reason": "Run the full twin pipeline to measure stability",
+            "eligibility": eligibility,
+        }
+        if eligibility["status"] == "ELIGIBLE"
+        else eligibility
+    )
     report.limitations += [
         "Docker-only isolation is development-grade; do not expose this runner as a public multi-tenant service",
         "Python 3.11 pure functions with finite JSON arguments/results; no package installation",

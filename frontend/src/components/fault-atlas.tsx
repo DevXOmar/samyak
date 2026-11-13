@@ -22,7 +22,9 @@ export default function FaultAtlas({
 }) {
   const [mode, setMode] = useState("calls");
   const { nodes, edges } = useMemo(() => {
-    const graph = report.structure.graph as {
+    const graph = (
+      mode === "ast" ? report.structure.syntax_tree : report.structure.graph
+    ) as {
       nodes: {
         id: string;
         kind: string;
@@ -105,6 +107,7 @@ export default function FaultAtlas({
           onChange={(e) => setMode(e.target.value)}
         >
           <option value="calls">Call graph</option>
+          <option value="ast">Python AST</option>
           <option value="defuse">Def-use</option>
           <option value="cfg">Control flow</option>
         </select>

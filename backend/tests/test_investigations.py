@@ -82,3 +82,32 @@ def test_retrieval_ablation_and_full_ledger_replay(client):
     proof = verified["intelligence"]["ledger"]["verification"]
     assert proof["status"] == "REPLAY_VERIFIED"
     assert all(r["match"] for r in proof["replays"])
+
+
+def test_twin_runs_real_analysis_and_repair(client):
+    base = submit(client, "binary_search")
+    twin = action(client, base, "twin")["intelligence"]["twin"]
+    assert twin["status"] == "MEASURED"
+    assert twin["risk_delta"] == 0
+    assert twin["twin_verdict"] == "VALIDATED_ON_TESTS"
+    assert twin["execution_results"] and twin["candidate_evidence"]
+    assert twin["source"] != base["source"]
+
+
+def test_sorting_shield_discovers_actual_property_violation(client):
+    response = client.post("/v1/analyses", json={"source": "def normalize(nums):\n    return nums\n"})
+    base = complete(client, response)
+    unsupported = action(client, base, "metamorphic")
+    assert unsupported["intelligence"]["metamorphic"]["status"] == "NOT_SUPPORTED"
+    declared = complete(
+        client,
+        client.post(
+            f"/v1/analyses/{base['job_id']}/contracts/property",
+            json={"function": "normalize", "reviewer": "judge"},
+        ),
+    )
+    measured = action(client, declared, "metamorphic")["intelligence"]["metamorphic"]
+    assert measured["status"] == "MEASURED" and measured["violations"] > 0
+    assert any(r["relation"] == "permutation_and_multiset" and r["violated"] for r in measured["relations"])
+    assert any(r["relation"] == "idempotence" for r in measured["relations"])
+    assert all(r["test"]["tier"] == "B" for r in measured["relations"])

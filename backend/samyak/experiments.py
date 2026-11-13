@@ -2,8 +2,15 @@
 
 from .precedent_experiment import compare_precedents
 from .ledger_experiment import verify_ledger
+from .twins import challenge_twin
+from .metamorphic import shield
 
-HANDLERS = {"precedents": compare_precedents, "ledger": verify_ledger}
+HANDLERS = {
+    "precedents": compare_precedents,
+    "ledger": verify_ledger,
+    "twin": challenge_twin,
+    "metamorphic": shield,
+}
 
 
 def run_experiment(action, report, payload, runner, stage):

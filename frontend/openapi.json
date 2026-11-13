@@ -661,7 +661,8 @@
                 "enum": [
                   "binary_search",
                   "average",
-                  "caller_regression"
+                  "caller_regression",
+                  "unfamiliar"
                 ]
               },
               {
@@ -709,7 +710,8 @@
                 "enum": [
                   "binary_search",
                   "average",
-                  "caller_regression"
+                  "caller_regression",
+                  "unfamiliar"
                 ]
               },
               {

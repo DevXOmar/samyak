@@ -949,3 +949,50 @@ td code {
     animation: none !important;
   }
 }
+.evidence-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  margin: 20px 0;
+  padding: 17px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.evidence-stats > div {
+  min-width: 130px;
+  flex: 1;
+}
+.evidence-stats strong,
+.evidence-stats code {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 9px;
+}
+.witness-comparison {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 22px 0;
+  flex-wrap: wrap;
+}
+.witness-comparison > div {
+  flex: 1;
+  min-width: 160px;
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.witness-comparison code {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.impact-card {
+  padding: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}

@@ -119,6 +119,8 @@ def infer(source, supplied=(), property_contracts=None):
                             kind, evidence = "str", "AST_STRING_OPERATION"
                         if node.attr == "get":
                             kind, evidence = "dict", "AST_MAPPING_OPERATION"
+            if fn.name in property_contracts and len(fn.args.args) == 1:
+                kind, evidence = "list[int]", "EXPLICIT_PROPERTY_CONTRACT"
             params.append(
                 {
                     "name": arg.arg,
